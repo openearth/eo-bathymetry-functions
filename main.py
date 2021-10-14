@@ -1,13 +1,16 @@
-from logging import Logger, get_logger
+from logging import Logger, getLogger
 from typing import Any, Dict
 
-from flask import Request, Response, escape
+import ee
+from flask import Request, Response
+from geojson import loads
 from jsonschema import validate
 from jsonschema.exceptions import ValidationError
 
 from export_tile_bathymetry import export_tiles_to_assets
 
-logger: Logger = get_logger(__name__)
+logger: Logger = getLogger(__name__)
+ee.Initialize()
 
 # Create json schema to verify
 schema: Dict[str, Any] = {
@@ -21,9 +24,11 @@ schema: Dict[str, Any] = {
                     "type": "array",
                     "items": {
                         "type": "array",
-                        "items": {type: "number"},
-                        "minItems": 2,
-                        "maxItems": 2
+                        "items": {
+                            "items": {type: "number"},
+                            "minItems": 2,
+                            "maxItems": 2
+                        }
                     }
                 }
             },
@@ -64,7 +69,7 @@ def generate_bathymetry(request: Request):
     except (ValidationError) as e:
         return Response(e.message, status=400)
 
-    geometry: Dict[str, Any] = json_body["geometry"]
+    geometry: Dict[str, Any] = ee.Geometry(loads(str(json_body["geometry"]).replace("'", "\"")))
     start: str = json_body["start"]
     stop: str = json_body["stop"]
 
@@ -78,8 +83,9 @@ def generate_bathymetry(request: Request):
     export_tiles_to_assets(
         asset_path="users/jaapel/eobathymetry",
         geometry=geometry,
+        zoom=10,
         start=start,
-        stop=stop
+        stop=stop,
     )
 
     return Response(status=200)
