@@ -16,6 +16,18 @@ variable cloudfunction_name {
   description = "name of the cloud function"
 }
 
+variable service_account_name {
+  type        = string
+  default     = "eo-bathymetry-automation"
+  description = "name of service account used for the cloud function"
+}
+
+variable service_account_key_path {
+  type        = string
+  default     = "/etc/secrets/eo-bathymetry-sa-key.json"
+  description = "path where the private key of the service account is mounted in the cloudfunction image."
+}
+
 variable cloudfunction_entrypoint {
   type        = string
   default     = "generate_bathymetry"

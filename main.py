@@ -1,4 +1,5 @@
 from logging import Logger, getLogger
+from os import environ
 from typing import Any, Dict
 
 import ee
@@ -7,10 +8,11 @@ from geojson import loads
 from jsonschema import validate
 from jsonschema.exceptions import ValidationError
 
-from export_tile_bathymetry import export_tiles_to_assets
+from export_tile_bathymetry import export_tiles
 
 logger: Logger = getLogger(__name__)
-ee.Initialize()
+credentials: ee.ServiceAccountCredentials = ee.ServiceAccountCredentials(environ.get("SA_EMAIL"), environ.get("SA_KEY_PATH"))
+ee.Initialize(credentials=credentials)
 
 # Create json schema to verify
 schema: Dict[str, Any] = {
@@ -41,9 +43,22 @@ schema: Dict[str, Any] = {
         "stop": {
             "type": "string",
             "pattern": "\d{4}-\d{2}-\d{2}"
+        },
+        "sink": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "enum": ["cloud", "asset"],
+                },
+                "bucket": {
+                    "type": "string",
+                    "pattern": "[\w\-]{3,62}|(?=.*\.)[\w\-\.]{3,222}"
+                }
+            },
+            "required": ["type"]
         }
     },
-    "required": ["geometry", "start", "stop"]
+    "required": ["geometry", "start", "stop", "sink"]
 }
 
 def generate_bathymetry(request: Request):
@@ -72,6 +87,8 @@ def generate_bathymetry(request: Request):
     geometry: Dict[str, Any] = ee.Geometry(loads(str(json_body["geometry"]).replace("'", "\"")))
     start: str = json_body["start"]
     stop: str = json_body["stop"]
+    sink: str = json_body["sink"]["type"]
+    bucket: str = json_body["sink"].get("bucket")
 
     logger.info(f"""
     Obtained request for geometry: {geometry}
@@ -80,16 +97,13 @@ def generate_bathymetry(request: Request):
     Stating export.
     """)
     
-    export_tiles_to_assets(
-        asset_path="users/jaapel/eobathymetry",
+    export_tiles(
+        sink=sink,
         geometry=geometry,
         zoom=10,
         start=start,
         stop=stop,
+        bucket=bucket
     )
 
     return Response(status=200)
-    
-
-    
-

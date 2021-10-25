@@ -213,7 +213,7 @@ def export_sdb_tiles(
         task_list.append(task)
     return task_list
 
-def export_tiles_to_assets(
+def export_tiles(
     sink: str,
     geometry: ee.Geometry,
     zoom: int,
