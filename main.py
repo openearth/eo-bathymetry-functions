@@ -1,4 +1,3 @@
-from logging import Logger, getLogger
 from os import environ
 from typing import Any, Dict
 
@@ -10,9 +9,10 @@ from jsonschema.exceptions import ValidationError
 
 from export_tile_bathymetry import export_tiles
 
-logger: Logger = getLogger(__name__)
 credentials: ee.ServiceAccountCredentials = ee.ServiceAccountCredentials(environ.get("SA_EMAIL"), environ.get("SA_KEY_PATH"))
 ee.Initialize(credentials=credentials)
+
+PROJECT = environ.get("PROJECT")
 
 # Create json schema to verify
 schema: Dict[str, Any] = {
@@ -78,6 +78,13 @@ def generate_bathymetry(request: Request):
         Response object using `make_response`
         <https://flask.palletsprojects.com/en/1.1.x/api/#flask.make_response>.
     """
+    # Setup logging in cloud function
+    global_log_fields: Dict[str, str] = {}
+    trace_header: str = request.headers.get("X-Cloud-Trace-Context")
+    if trace_header and PROJECT:
+        trace = trace_header.split("/")
+        global_log_fields["logging.googleapis.com/trace"] = f"projects/{PROJECT}/traces/{trace[0]}"
+
     json_body: Dict[any, str] = request.get_json()
     try:
         validate(instance=json_body, schema=schema)
@@ -89,13 +96,6 @@ def generate_bathymetry(request: Request):
     stop: str = json_body["stop"]
     sink: str = json_body["sink"]["type"]
     bucket: str = json_body["sink"].get("bucket")
-
-    logger.info(f"""
-    Obtained request for geometry: {geometry}
-    start: {start}
-    stop: {stop}
-    Stating export.
-    """)
     
     export_tiles(
         sink=sink,
@@ -103,7 +103,8 @@ def generate_bathymetry(request: Request):
         zoom=10,
         start=start,
         stop=stop,
-        bucket=bucket
+        bucket=bucket,
+        global_log_fields=global_log_fields
     )
 
     return Response(status=200)

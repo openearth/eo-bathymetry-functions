@@ -53,14 +53,17 @@ module "storage_bucket-iam-bindings" {
 }
 
 resource "random_id" "this" {
-  # create random trigger if file does not exist
+  # create random trigger if dist changes
+  keepers = {
+    always_run = "${timestamp()}"
+  }
   byte_length = 10
 }
 
 resource "null_resource" "create_zip_archive" {
   # Create zip file containing python file that needs to be uploaded
   triggers = {
-    python_zip = fileexists("../dist/dist.zip") ? filesha256("../dist/dist.zip") : random_id.this.id
+    always_run = "${timestamp()}"
   }
 
   provisioner "local-exec" {
@@ -96,7 +99,7 @@ resource "google_storage_bucket_object" "archive" {
 resource "null_resource" "deploy_cloud_function" {
   # Create zip file containing python file that needs to be uploaded
   triggers = {
-    python_zip = fileexists("../dist/dist.zip") ? filesha256("../dist/dist.zip") : random_id.this.id
+    python_zip = fileexists("../dist/dist${random_id.this.id}.zip") ? filesha256("../dist/dist${random_id.this.id}.zip") : random_id.this.id
   }
 
   provisioner "local-exec" {

@@ -1,6 +1,6 @@
 from ctypes import ArgumentError
 from functools import partial
-from logging import Logger, getLogger
+from json import dumps
 from typing import Any, Dict, List, Optional
 from re import sub
 
@@ -10,7 +10,6 @@ from eepackages.applications.bathymetry import Bathymetry
 from eepackages import tiler
 from googleapiclient.discovery import build
 
-logger: Logger = getLogger(__name__)
 
 def get_tile_bathymetry(tile: ee.Feature, start: ee.String, stop: ee.String) -> ee.Image:
     """
@@ -57,7 +56,8 @@ def tile_to_asset(
     export_scale: int,
     asset_path_prefix: str,
     asset_name: str,
-    overwrite: bool
+    overwrite: bool,
+    global_log_fields: Optional[Dict[str, str]] = None
 ) -> Optional[ee.batch.Task]:
     """
     Export a tile to a earth engine asset
@@ -69,6 +69,7 @@ def tile_to_asset(
         asset_path_prefix (str): prefix of the asset path
         asset_name (str): name of the asset
         overwrite (bool): whether to overwrite any existing artifacts
+        global_log_fields (Optional(Dict)): log fields for the entire cloud function.
 
     returns:
         Optional[ee.batch.Task] started task
@@ -76,10 +77,18 @@ def tile_to_asset(
     asset_id: str = f"{asset_path_prefix}/{asset_name}"
     asset: Dict[str, Any] = ee.data.getInfo(asset_id)
     if overwrite and asset:
-        logger.info(f"deleting asset {asset}")
+        print(dumps({
+            "severity": "NOTICE",
+            "message": f"deleting asset {asset}",
+            **global_log_fields
+        }))
         ee.data.deleteAsset(asset_id)
     elif asset:
-        logger.info(f"asset {asset} already exists, skipping {asset_name}")
+        print(dumps({
+            "severity": "NOTICE",
+            "message": f"asset {asset} already exists, skipping {asset_name}",
+            **global_log_fields
+        }))
         return
     task: ee.batch.Task = ee.batch.Export.image.toAsset(
         image,
@@ -89,7 +98,11 @@ def tile_to_asset(
         scale=export_scale
     )
     task.start()
-    logger.info(f"exporting {asset_name} to {asset_id}")
+    print(dumps({
+        "severity": "NOTICE",
+        "message": f"exporting {asset_name} to {asset_id}",
+        **global_log_fields
+    }))
 
 def tile_to_cloud_storage(
     image: ee.Image,
@@ -97,7 +110,8 @@ def tile_to_cloud_storage(
     export_scale: int,
     bucket: str,
     bucket_path: str,
-    overwrite: bool
+    overwrite: bool,
+    global_log_fields: Optional[Dict[str, str]] = None
 ) -> Optional[ee.batch.Task]:
     """
     Export a tile to cloud storage
@@ -109,6 +123,7 @@ def tile_to_cloud_storage(
         bucket (str): name of the gcs bucket
         bucket_path (str): path to the object in the bucket
         overwrite (bool): whether to overwrite any existing artifacts
+        global_log_fields (Optional(Dict)): log fields for the entire cloud function.
 
     returns:
         Optional[ee.batch.Task] started task
@@ -121,7 +136,11 @@ def tile_to_cloud_storage(
         except AttributeError:
             object_exists = False
         if object_exists:
-            logger.info(f"object {bucket_path} already exists in bucket {bucket}, skipping")
+            print(dumps({
+                "severity": "NOTICE",
+                "message": f"object {bucket_path} already exists in bucket {bucket}, skipping",
+                **global_log_fields
+            }))
             return
         
     task: ee.batch.Task = ee.batch.Export.image.toCloudStorage(
@@ -133,6 +152,11 @@ def tile_to_cloud_storage(
         scale=export_scale
     )
     task.start()
+    print(dumps({
+        "severity": "NOTICE",
+        "message": f"exporting tile to bucket {bucket}/{bucket}",
+        **global_log_fields
+    }))
     return task
 
 def export_sdb_tiles(
@@ -144,7 +168,8 @@ def export_sdb_tiles(
     name_suffix: str,
     task_list: List[ee.batch.Task],
     overwrite: bool,
-    bucket: Optional[str] = None
+    bucket: Optional[str] = None,
+    global_log_fields: Optional[Dict[str, str]] = None
 ) -> List[ee.batch.Task]:
     """
     Export list of tiled images containing subtidal bathymetry. Fires off the tasks and adds to the list of tasks.
@@ -160,7 +185,8 @@ def export_sdb_tiles(
         name_suffix (str): unique identifier after tile statistics.
         task_list (List[ee.batch.Task]): list of tasks, adds tasks created to this list.
         overwrite (bool): whether to overwrite the current assets under the same `asset_path`.
-        bucket (str): Bucket where the data is stored. Only used when sink = "cloud"
+        bucket (str): Bucket where the data is stored. Only used when sink = "cloud".
+        global_log_fields (Optional(Dict)): log fields for the entire cloud function.
     
     returns:
         List[ee.batch.Task]: list of started tasks
@@ -194,7 +220,8 @@ def export_sdb_tiles(
                 export_scale=export_scale,
                 asset_path_prefix=asset_path_prefix,
                 asset_name=img_name,
-                overwrite=overwrite
+                overwrite=overwrite,
+                global_log_fields=global_log_fields
             )
             if task: task_list.append(task)
         elif sink == "cloud":
@@ -206,7 +233,8 @@ def export_sdb_tiles(
                 export_scale=export_scale,
                 bucket=bucket,
                 bucket_path=img_name,
-                overwrite=overwrite
+                overwrite=overwrite,
+                global_log_fields=global_log_fields
             )
         else:
             raise ArgumentError("unrecognized data sink: {sink}")
@@ -222,7 +250,8 @@ def export_tiles(
     step_months: int = 3,
     window_years: int = 2,
     overwrite: bool = False,
-    bucket: Optional[str] = None
+    bucket: Optional[str] = None,
+    global_log_fields: Optional[Dict[str, str]] = None
 ) -> None:
     """
     From a geometry, creates tiles of input zoom level, calculates subtidal bathymetry in those
@@ -236,7 +265,10 @@ def export_tiles(
         stop (ee.String): stop date in YYYY-MM-dd format.
         step_months (int): steps with which to roll the window over which the subtidal bathymetry
             is calculated.
-        windows_years (int): number of years over which the subtidal bathymetry is calculated.
+        window_years (int): number of years over which the subtidal bathymetry is calculated.
+        overwrite (bool): whether to overwrite current tiles in the sink.
+        bucket (Optional(str)): bucket for sink "cloud".
+        global_log_fields (Optional(Dict)): log fields for the entire cloud function.
     """
     
     def create_year_window(year: ee.Number, month: ee.Number) -> ee.Dictionary:
@@ -278,6 +310,6 @@ def export_tiles(
             name_suffix=f"{date['start']}_{date['stop']}",
             task_list=task_list,
             overwrite=overwrite,
-            bucket=bucket
+            bucket=bucket,
+            global_log_fields=global_log_fields
         )
-
