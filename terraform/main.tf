@@ -67,14 +67,14 @@ resource "null_resource" "create_zip_archive" {
   }
 
   provisioner "local-exec" {
-    command = "./zip_source.sh dist dist.zip"
+    command = "./zip_source.sh dist dist${random_id.this.dec}.zip"
   }
 }
 
 resource "google_storage_bucket_object" "archive" {
   name   = "${var.cloudfunction_entrypoint}.zip"
   bucket = google_storage_bucket.bathymetry_data.name
-  source = "../dist/dist.zip"
+  source = "../dist/dist${random_id.this.dec}.zip"
   depends_on = [null_resource.create_zip_archive]
 }
 
@@ -99,7 +99,7 @@ resource "google_storage_bucket_object" "archive" {
 resource "null_resource" "deploy_cloud_function" {
   # Create zip file containing python file that needs to be uploaded
   triggers = {
-    python_zip = fileexists("../dist/dist.zip") ? filesha256("../dist/dist.zip") : random_id.this.id
+    always_run = "${timestamp()}"
   }
 
   provisioner "local-exec" {

@@ -1,7 +1,7 @@
 job_configs = {
     sdb_den_helder = {
         description = "Job to generate the SDB of the area around Den Helder, NL",
-        cron_schedule = "50 * * * *",
+        cron_schedule = "0 1 1 */3 *",  # 01:00 every 3rd month (March / June / September / December)
         time_zone = "Europe/Amsterdam",
         http_method = "POST",
         uri = "https://europe-west1-bathymetry.cloudfunctions.net/export-tile-bathymetry",  # TODO: get this output in terraform
@@ -32,8 +32,6 @@ job_configs = {
                 ]
             ]
         zoom = 10,
-        start = "2016-01-01",
-        stop = "2018-01-01",
         step_months = 3,
         window_years = 1,
     }

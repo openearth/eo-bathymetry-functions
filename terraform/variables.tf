@@ -65,8 +65,6 @@ variable job_configs {
       uri = string,
       coordinates = list(tuple([number, number])),
       zoom = number,
-      start = string,
-      stop = string,
       step_months = number,
       window_years = number,
     })

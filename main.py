@@ -67,7 +67,7 @@ schema: Dict[str, Any] = {
             "type": "number"
         }
     },
-    "required": ["geometry", "zoom", "start", "stop", "sink"]
+    "required": ["geometry", "zoom", "sink"]
 }
 
 def generate_bathymetry(request: Request):
@@ -79,6 +79,11 @@ def generate_bathymetry(request: Request):
         Requires the following body:
             geometry: (Geo)JSON representation of the Geometry that will be used to calculate the
                 subtidal bathymetry.
+            zoom: earth engine zoom level.
+            sink: json object describing the data sink. Can either be:
+                {"type": "cloud", "bucket": "bucket_name"} or {"type": "asset"}
+        
+        optionally:
             start: date string as YYYY-MM-dd, where the analysis starts.
             stop: date string as YYYY-MM-dd, where the analysis stops.
         
@@ -104,8 +109,8 @@ def generate_bathymetry(request: Request):
 
     kwargs["geometry"] = ee.Geometry(loads(str(json_body["geometry"]).replace("'", "\"")))
     kwargs["zoom"] = json_body["zoom"]
-    kwargs["start"] = json_body["start"]
-    kwargs["stop"] = json_body["stop"]
+    kwargs["start"] = json_body.get("start")
+    kwargs["stop"] = json_body.get("stop")
     kwargs["sink"] = json_body["sink"]["type"]
     kwargs["bucket"] = json_body["sink"].get("bucket")
     step_months_opt: Optional[Union[int, float]] = json_body.get("step_months")
