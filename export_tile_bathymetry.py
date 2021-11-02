@@ -1,10 +1,12 @@
 from ctypes import ArgumentError
-from functools import partial
+from datetime import date as Date
+from datetime import datetime, timedelta
 from json import dumps
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from re import sub
 
 from dateutil.parser import parse
+from dateutil.relativedelta import relativedelta
 import ee
 from eepackages.applications.bathymetry import Bathymetry
 from eepackages import tiler
@@ -133,7 +135,7 @@ def tile_to_cloud_storage(
     if not overwrite:
         try:
             object_exists = any(map(lambda item: item.get("name").startswith(bucket_path), res.get("items")))
-        except AttributeError:
+        except (AttributeError, TypeError):
             object_exists = False
         if object_exists:
             print(dumps({
@@ -146,7 +148,7 @@ def tile_to_cloud_storage(
     task: ee.batch.Task = ee.batch.Export.image.toCloudStorage(
         image,
         bucket=bucket,
-        description=bucket_path,
+        description=bucket_path.replace("/", "_"),
         fileNamePrefix=bucket_path,
         region=tile.geometry(),
         scale=export_scale
@@ -154,7 +156,7 @@ def tile_to_cloud_storage(
     task.start()
     print(dumps({
         "severity": "NOTICE",
-        "message": f"exporting tile to bucket {bucket}/{bucket}",
+        "message": f"exporting tile to bucket {bucket}/{bucket_path}",
         **global_log_fields
     }))
     return task
@@ -211,7 +213,7 @@ def export_sdb_tiles(
             .filterMetadata("zoom", "equals", zoom)
         # if filtered correctly, only a single image remains
         img: ee.Image = ee.Image(filtered_ic.first())  # have to cast here
-        img_name: str = sub(r"\.\d+", "", f"z{zoom}_x{tx}_y{ty}_t") + name_suffix
+        img_name: str = sub(r"\.\d+", "", f"z{zoom}/x{tx}/y{ty}/") + name_suffix
         # Export image
         if sink == "asset":  # Replace with case / switch in python 3.10
             task: Optional[ee.batch.Task] = tile_to_asset(
@@ -271,17 +273,34 @@ def export_tiles(
         global_log_fields (Optional(Dict)): log fields for the entire cloud function.
     """
     
-    def create_year_window(year: ee.Number, month: ee.Number) -> ee.Dictionary:
-        t: ee.Date = ee.Date.fromYMD(year, month, 1)
-        d_format: str = "YYYY-MM-dd"
-        return ee.Dictionary({
-            "start": t.format(d_format),
-            "stop": t.advance(window_years, 'year').format(d_format)
-            })
+    # def create_year_window(year: ee.Number, month: ee.Number) -> ee.Dictionary:
+    #     t: ee.Date = ee.Date.fromYMD(year, month, 1)
+    #     d_format: str = "YYYY-MM-dd"
+    #     return ee.Dictionary({
+    #         "start": t.format(d_format),
+    #         "stop": t.advance(window_years, 'year').format(d_format)
+    #         })
         
-    dates: ee.List = ee.List.sequence(parse(start).year, parse(stop).year).map(
-        lambda year: ee.List.sequence(1, 12, step_months).map(partial(create_year_window, year))
-    ).flatten()
+    # dates: ee.List = ee.List.sequence(parse(start).year, parse(stop).year).map(
+    #     lambda year: ee.List.sequence(1, 12, step_months).map(partial(create_year_window, year))
+    # ).flatten()
+
+    def rolling_time_window(start: Date, stop: Date, dt: relativedelta, window_length: relativedelta) -> List[Tuple[Date]]:
+        if stop - start < timedelta.resolution:
+            raise RuntimeError("Stop and Start too close")
+        
+        window_list: List[Tuple[Date]] = []
+        t: Date = start
+        while t <= stop - window_length:
+            window_list.append((str(t), str(t+window_length)))
+            t += dt
+        return window_list
+    
+    start: datetime = parse(start)
+    start_date: Date = Date(year=start.year, month=start.month, day=start.day)
+    stop: datetime = parse(stop)
+    stop_date: Date = Date(year=stop.year, month=stop.month, day=stop.day)
+    dates: List[Tuple[Date]] = rolling_time_window(start_date, stop_date, relativedelta(months=step_months), relativedelta(years=window_years))
     
     # Get tiles
     tiles: ee.FeatureCollection = tiler.get_tiles_for_geometry(geometry, ee.Number(zoom))
@@ -291,12 +310,12 @@ def export_tiles(
     num_tiles: int = tiles.size().getInfo()
     tile_list: ee.List = tiles.toList(num_tiles)
 
-    for date in dates.getInfo():
+    for date in dates:
         sdb_tiles: ee.ImageCollection = tiles.map(
             lambda tile: get_tile_bathymetry(
                 tile=tile,
-                start=ee.String(date["start"]),
-                stop=ee.String(date["stop"])
+                start=ee.String(date[0]),
+                stop=ee.String(date[1])
             )
         )
 
@@ -307,7 +326,7 @@ def export_tiles(
             num_tiles=num_tiles,
             export_scale=scale,
             sdb_tiles=sdb_tiles,
-            name_suffix=f"{date['start']}_{date['stop']}",
+            name_suffix=f"t{date[0]}_{date[1]}",
             task_list=task_list,
             overwrite=overwrite,
             bucket=bucket,
