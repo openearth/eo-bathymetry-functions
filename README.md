@@ -23,8 +23,10 @@ docker image in the terminal, which exposes the cloud function on port 8080.
 ## Deployment
 `make deploy`
 
+## Adding schedulers
+When adding a scheduler, add to the `job_configs` terraform variable in
+`./terraform/workspaces/defaults.tfvars`, where the key is the name of the scheduler.
+
 ### TODO
 - Client side encryption: We can encrypt the terraform state at client side to enhance security.
     when secrets are used in the `variables.tf`.
-- Scheduling: We need to schedule the cloud function using the cloud scheduler. We also want to
-    easily add some queries to the scheduler.
