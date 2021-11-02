@@ -22,4 +22,7 @@ local-deploy: build
 	-e SA_KEY_PATH=$(sa_key_path)/$(sa_key_name) \
 	-v $(shell pwd)/dist:$(sa_key_path) \
 	-v $(HOME)/.config/gcloud:/home/cnb/.config/gcloud \
-	sdb-function 
+	sdb-function
+
+deploy:
+	cd terraform & terraform apply
