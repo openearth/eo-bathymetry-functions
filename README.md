@@ -10,13 +10,18 @@ To obtain credentials to use for local development, use:
 
 You need to enable the service account with google earth engine
 [here](https://developers.google.com/earth-engine/guides/service_account).
+You also need an app engine application for using the cloud scheduler.
 
-To deploy, run `terraform apply` or `make deploy`
+When developing, use `make get_tf_key` to get your service account setup. Then you can 
+`terraform plan -var-file default.tfvars` in the terraform folder.
 
 ## Local Development
 Install docker, pack cli, terraform, install gcloud and login to the bathymetry project as
 described in the [terraform](#terraform) section. Then run `make deploy-local`. This will start a
 docker image in the terminal, which exposes the cloud function on port 8080.
+
+## Deployment
+`make deploy`
 
 ### TODO
 - Client side encryption: We can encrypt the terraform state at client side to enhance security.

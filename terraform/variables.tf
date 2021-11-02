@@ -40,7 +40,6 @@ variable function_memory {
   description = "Cloud function memory in MB"
 }
 
-
 variable labels {
   type        = map(string)
   default     = {
@@ -51,7 +50,27 @@ variable labels {
 }
 
 variable project {
-    type        = string
-    default     = "bathymetry"
-    description = "project name"
+  type        = string
+  default     = "bathymetry"
+  description = "project name"
+}
+
+variable job_configs {
+  type        = map(
+    object({
+      description = string,
+      cron_schedule = string,
+      time_zone = string,
+      http_method = string,
+      uri = string,
+      coordinates = list(tuple([number, number])),
+      zoom = number,
+      start = string,
+      stop = string,
+      step_months = number,
+      window_years = number,
+    })
+  )
+  description = "configuration for the cron-based cloud scheduler jobs."
+  default = {}
 }

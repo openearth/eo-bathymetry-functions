@@ -1,4 +1,4 @@
-.PHONY: build local-deploy
+.PHONY: build local-deploy deploy get_tf_key
 
 sa_email = $(shell cd terraform && terraform output -raw sa_email)
 sa_key_path = $(shell dirname $(shell cd terraform && terraform output -raw sa_key_path))
@@ -24,5 +24,8 @@ local-deploy: build
 	-v $(HOME)/.config/gcloud:/home/cnb/.config/gcloud \
 	sdb-function
 
-deploy:
-	cd terraform & terraform apply
+get_tf_key:
+	gcloud secrets versions access 1 --secret="terraform-sa-key" --format='get(payload.data)' | tr '_-' '/+' | base64 -d > dist/terraform_sa_key.json
+
+deploy: get_tf_key
+	cd terraform && terraform apply -var-file workspaces/default.tfvars
