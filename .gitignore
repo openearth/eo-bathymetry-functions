@@ -132,3 +132,6 @@ dmypy.json
 **/.terraform/*
 *.tfstate
 *.lock.hcl
+
+# Key files
+*key.json

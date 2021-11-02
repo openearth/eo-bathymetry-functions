@@ -1,5 +1,5 @@
 from os import environ
-from typing import Any, Dict
+from typing import Any, Dict, Optional, Union
 
 import ee
 from flask import Request, Response
@@ -36,6 +36,9 @@ schema: Dict[str, Any] = {
             },
             "required": ["coordinates"]
         },
+        "zoom": {
+            "type": "number"
+        },
         "start": {
             "type": "string",
             "pattern": "\d{4}-\d{2}-\d{2}"
@@ -56,9 +59,15 @@ schema: Dict[str, Any] = {
                 }
             },
             "required": ["type"]
+        },
+        "step_months": {
+            "type": "number"
+        },
+        "window_years": {
+            "type": "number"
         }
     },
-    "required": ["geometry", "start", "stop", "sink"]
+    "required": ["geometry", "zoom", "start", "stop", "sink"]
 }
 
 def generate_bathymetry(request: Request):
@@ -70,8 +79,8 @@ def generate_bathymetry(request: Request):
         Requires the following body:
             geometry: (Geo)JSON representation of the Geometry that will be used to calculate the
                 subtidal bathymetry.
-            start: date string as YYYY-MM-dd, where the analysis starts.  TODO: can be just start_year?
-            stop: date string as YYYY-MM-dd, where the analysis stops.  TODO: can just be stop_year?
+            start: date string as YYYY-MM-dd, where the analysis starts.
+            stop: date string as YYYY-MM-dd, where the analysis stops.
         
     Returns:
         The response text, or any set of values that can be turned into a
@@ -91,19 +100,25 @@ def generate_bathymetry(request: Request):
     except (ValidationError) as e:
         return Response(e.message, status=400)
 
-    geometry: Dict[str, Any] = ee.Geometry(loads(str(json_body["geometry"]).replace("'", "\"")))
-    start: str = json_body["start"]
-    stop: str = json_body["stop"]
-    sink: str = json_body["sink"]["type"]
-    bucket: str = json_body["sink"].get("bucket")
+    kwargs: Dict[str, Any] = {}
+
+    kwargs["geometry"] = ee.Geometry(loads(str(json_body["geometry"]).replace("'", "\"")))
+    kwargs["zoom"] = json_body["zoom"]
+    kwargs["start"] = json_body["start"]
+    kwargs["stop"] = json_body["stop"]
+    kwargs["sink"] = json_body["sink"]["type"]
+    kwargs["bucket"] = json_body["sink"].get("bucket")
+    step_months_opt: Optional[Union[int, float]] = json_body.get("step_months")
+    window_years_opt: Optional[Union[int, float]] = json_body.get("step_months")
     
+    if step_months_opt:
+        kwargs["step_months"] = int(step_months_opt)
+    
+    if window_years_opt:
+        kwargs["window_years"] = int(window_years_opt)
+        
     export_tiles(
-        sink=sink,
-        geometry=geometry,
-        zoom=10,
-        start=start,
-        stop=stop,
-        bucket=bucket,
+        **kwargs,
         global_log_fields=global_log_fields
     )
 
