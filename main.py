@@ -7,7 +7,7 @@ from geojson import loads
 from jsonschema import validate
 from jsonschema.exceptions import ValidationError
 
-from export_tile_bathymetry import export_tiles
+from eo_bathymetry_functions.export_tile_bathymetry import export_tiles
 
 credentials: ee.ServiceAccountCredentials = ee.ServiceAccountCredentials(environ.get("SA_EMAIL"), environ.get("SA_KEY_PATH"))
 ee.Initialize(credentials=credentials)
