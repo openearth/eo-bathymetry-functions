@@ -34,7 +34,7 @@ def get_tile_bathymetry(tile: ee.Feature, start: ee.String, stop: ee.String) -> 
     ty: ee.String = ee.String(tile.get("ty"))
     tile_name: ee.String = ee.String("z").cat(zoom).cat("_x").cat(tx).cat("_y").cat(ty).replace("\.\d+", "", "g")
     img_fullname: ee.String = ee.String(tile_name).cat("_t").cat(ee.Date(start).millis().format())
-        
+    
     image: ee.Image = sdb.compute_inverse_depth(
                 bounds=bounds,
                 start=start,

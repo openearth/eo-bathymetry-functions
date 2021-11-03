@@ -14,18 +14,18 @@ build:
 	sdb-function
 
 local-deploy: build
-	gcloud secrets versions access 1 --secret="eo-bathymetry-sa-key" --format='get(payload.data)' | tr '_-' '/+' | base64 -d > dist/$(sa_key_name)
+	gcloud secrets versions access 1 --secret="eo-bathymetry-sa-key" --format='get(payload.data)' | tr '_-' '/+' | base64 -d > gcloud_dist/$(sa_key_name)
 	docker run \
 	--rm \
 	-p 8080:8080 \
 	-e SA_EMAIL=$(sa_email) \
 	-e SA_KEY_PATH=$(sa_key_path)/$(sa_key_name) \
-	-v $(shell pwd)/dist:$(sa_key_path) \
+	-v $(shell pwd)/gcloud_dist:$(sa_key_path) \
 	-v $(HOME)/.config/gcloud:/home/cnb/.config/gcloud \
 	sdb-function
 
 get_tf_key:
-	gcloud secrets versions access 1 --secret="terraform-sa-key" --format='get(payload.data)' | tr '_-' '/+' | base64 -d > dist/terraform_sa_key.json
+	gcloud secrets versions access 1 --secret="terraform-sa-key" --format='get(payload.data)' | tr '_-' '/+' | base64 -d > gcloud_dist/terraform_sa_key.json
 
 deploy: get_tf_key
 	cd terraform && terraform apply -var-file workspaces/default.tfvars

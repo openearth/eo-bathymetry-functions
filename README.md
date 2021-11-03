@@ -1,3 +1,7 @@
+[![PyPi version](https://badgen.net/pypi/v/eo_bathymetry_functions/)](https://pypi.com/project/eo_bathymetry_functions)
+[![CI](https://github.com/openearth/eo-bathymetry-functions/actions/workflows/ci.yaml/badge.svg?branch=main&event=push)](https://github.com/openearth/eo-bathymetry-functions/actions/workflows/ci.yaml)
+[![CD](https://github.com/openearth/eo-bathymetry-functions/actions/workflows/cd.yaml/badge.svg?branch=main&event=push)](https://github.com/openearth/eo-bathymetry-functions/actions/workflows/cd.yaml)
+
 # eo-bathymetry-functions
 Automation of satellite-derived bathymetry generation with GSC Cloud Functions
 

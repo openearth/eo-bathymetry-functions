@@ -67,14 +67,14 @@ resource "null_resource" "create_zip_archive" {
   }
 
   provisioner "local-exec" {
-    command = "./zip_source.sh dist dist${random_id.this.dec}.zip"
+    command = "./zip_source.sh gcloud_dist dist${random_id.this.dec}.zip"
   }
 }
 
 resource "google_storage_bucket_object" "archive" {
   name   = "${var.cloudfunction_entrypoint}.zip"
   bucket = google_storage_bucket.bathymetry_data.name
-  source = "../dist/dist${random_id.this.dec}.zip"
+  source = "../gcloud_dist/dist${random_id.this.dec}.zip"
   depends_on = [null_resource.create_zip_archive]
 }
 
