@@ -247,8 +247,8 @@ def export_tiles(
     sink: str,
     geometry: ee.Geometry,
     zoom: int,
-    start: str,
-    stop: str,
+    start: Optional[str] = None,
+    stop: Optional[str] = None,
     step_months: int = 3,
     window_years: int = 2,
     overwrite: bool = False,
@@ -272,18 +272,17 @@ def export_tiles(
         bucket (Optional(str)): bucket for sink "cloud".
         global_log_fields (Optional(Dict)): log fields for the entire cloud function.
     """
+
+    if not stop:
+        stop: datetime = datetime.now()
+    else:
+        stop: datetime = parse(stop)
     
-    # def create_year_window(year: ee.Number, month: ee.Number) -> ee.Dictionary:
-    #     t: ee.Date = ee.Date.fromYMD(year, month, 1)
-    #     d_format: str = "YYYY-MM-dd"
-    #     return ee.Dictionary({
-    #         "start": t.format(d_format),
-    #         "stop": t.advance(window_years, 'year').format(d_format)
-    #         })
-        
-    # dates: ee.List = ee.List.sequence(parse(start).year, parse(stop).year).map(
-    #     lambda year: ee.List.sequence(1, 12, step_months).map(partial(create_year_window, year))
-    # ).flatten()
+    # Make sure that an undefined start call takes two timesteps for processing
+    if not start:
+        start = stop - relativedelta(years=window_years) - relativedelta(months=step_months)
+    else:
+        start: datetime = parse(start)
 
     def rolling_time_window(start: Date, stop: Date, dt: relativedelta, window_length: relativedelta) -> List[Tuple[Date]]:
         if stop - start < timedelta.resolution:
@@ -296,9 +295,7 @@ def export_tiles(
             t += dt
         return window_list
     
-    start: datetime = parse(start)
     start_date: Date = Date(year=start.year, month=start.month, day=start.day)
-    stop: datetime = parse(stop)
     stop_date: Date = Date(year=stop.year, month=stop.month, day=stop.day)
     dates: List[Tuple[Date]] = rolling_time_window(start_date, stop_date, relativedelta(months=step_months), relativedelta(years=window_years))
     

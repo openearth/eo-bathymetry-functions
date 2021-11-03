@@ -99,7 +99,7 @@ resource "google_storage_bucket_object" "archive" {
 resource "null_resource" "deploy_cloud_function" {
   # Create zip file containing python file that needs to be uploaded
   triggers = {
-    python_zip = fileexists("../dist/dist${random_id.this.id}.zip") ? filesha256("../dist/dist${random_id.this.id}.zip") : random_id.this.id
+    always_run = "${timestamp()}"
   }
 
   provisioner "local-exec" {
@@ -121,7 +121,27 @@ resource "null_resource" "deploy_cloud_function" {
   }
 }
 
-# TODO
-# resource "google_cloud_scheduler_job" {
-    
-# }
+resource "google_cloud_scheduler_job" "query_bathymetry_geo" {
+  for_each = var.job_configs
+  name             = each.key
+  description      = each.value["description"]
+  schedule         = each.value["cron_schedule"]
+  time_zone        = each.value["time_zone"]
+  attempt_deadline = "320s"
+
+  retry_config {
+    retry_count = 1
+  }
+
+  http_target {
+    http_method = each.value["http_method"]
+    uri         = each.value["uri"]
+    body        = base64encode(templatefile(
+      "${path.module}/request.tpl",
+      merge(each.value, {bucket=var.bucket_name})
+    ))
+    headers     = {"Content-Type" = "application/json"}
+  }
+
+  depends_on = [null_resource.deploy_cloud_function]
+}
