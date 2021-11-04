@@ -76,6 +76,8 @@ def tile_to_asset(
     returns:
         Optional[ee.batch.Task] started task
     """
+    if not global_log_fields:
+        global_log_fields: Dict[str, str] = {}
     asset_id: str = f"{asset_path_prefix}/{asset_name}"
     asset: Dict[str, Any] = ee.data.getInfo(asset_id)
     if overwrite and asset:
@@ -130,6 +132,8 @@ def tile_to_cloud_storage(
     returns:
         Optional[ee.batch.Task] started task
     """
+    if not global_log_fields:
+        global_log_fields: Dict[str, str] = {}
     with build('storage', 'v1') as storage:
         res = storage.objects().list(bucket=bucket, prefix="/".join(bucket_path.split("/")[:-1])).execute()
     if not overwrite:
@@ -194,6 +198,8 @@ def export_sdb_tiles(
         List[ee.batch.Task]: list of started tasks
 
     """
+    if not global_log_fields:
+        global_log_fields: Dict[str, str] = {}
     if sink == "asset":
         user_name: str = ee.data.getAssetRoots()[0]["id"].split("/")[-1]
         asset_path_prefix: str = f"users/{user_name}/eo-bathymetry"
@@ -272,6 +278,8 @@ def export_tiles(
         bucket (Optional(str)): bucket for sink "cloud".
         global_log_fields (Optional(Dict)): log fields for the entire cloud function.
     """
+    if not global_log_fields:
+        global_log_fields: Dict[str, str] = {}
 
     if not stop:
         stop: datetime = datetime.now()
