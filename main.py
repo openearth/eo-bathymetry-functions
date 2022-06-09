@@ -56,6 +56,10 @@ schema: Dict[str, Any] = {
                 "bucket": {
                     "type": "string",
                     "pattern": "[\w\-]{3,62}|(?=.*\.)[\w\-\.]{3,222}"
+                },
+                "asset_path": {
+                    "type": "string",
+                    "pattern": "[\w\-]{3,62}|(?=.*\.)[\w\-\.]{3,222}"
                 }
             },
             "required": ["type"]
@@ -86,6 +90,8 @@ def generate_bathymetry(request: Request):
         optionally:
             start: date string as YYYY-MM-dd, where the analysis starts.
             stop: date string as YYYY-MM-dd, where the analysis stops.
+            step_months: number of months to include in each timestep, defaults to 3.
+            window_years: number of years to include in the analysis, defaults to 2.
         
     Returns:
         The response text, or any set of values that can be turned into a
@@ -113,6 +119,7 @@ def generate_bathymetry(request: Request):
     kwargs["stop"] = json_body.get("stop")
     kwargs["sink"] = json_body["sink"]["type"]
     kwargs["bucket"] = json_body["sink"].get("bucket")
+    kwargs["asset_path"] = json_body["sink"].get("asset_path")
     step_months_opt: Optional[Union[int, float]] = json_body.get("step_months")
     window_years_opt: Optional[Union[int, float]] = json_body.get("step_months")
     

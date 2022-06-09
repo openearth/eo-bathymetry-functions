@@ -25,7 +25,7 @@ terraform {
 provider "google" {
   project = var.project
   region = lower(var.region)
-  credentials = "../dist/terraform_sa_key.json"
+  credentials = "../gcloud_dist/terraform_sa_key.json"
 }
 
 provider "null" {}

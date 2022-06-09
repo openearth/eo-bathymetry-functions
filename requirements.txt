@@ -1,5 +1,6 @@
 eepackages==0.6.1
-flask==1.0.2
+earthengine-api==0.1.312
+flask==2.0.2
 geojson==2.5.0
 jsonschema==4.1.0
 python-dateutil==2.8.2

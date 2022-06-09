@@ -8,6 +8,11 @@ resource "google_service_account_key" "service_account" {
   public_key_type    = "TYPE_X509_PEM_FILE"
 }
 
+resource "google_project_iam_member" "project" {
+  role    = "roles/earthengine.writer"
+  member  = "serviceAccount:${google_service_account.service_account.email}"
+}
+
 resource "google_secret_manager_secret" "private_key" {
   secret_id = "eo-bathymetry-sa-key"
 

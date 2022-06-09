@@ -17,11 +17,11 @@ You need to enable the service account with google earth engine
 You also need an app engine application for using the cloud scheduler.
 
 When developing, use `make get_tf_key` to get your service account setup. Then you can 
-`terraform plan -var-file default.tfvars` in the terraform folder.
+`terraform plan -var-file workspaces/default.tfvars` in the terraform folder.
 
 ## Local Development
 Install docker, pack cli, terraform, install gcloud and login to the bathymetry project as
-described in the [terraform](#terraform) section. Then run `make deploy-local`. This will start a
+described in the [terraform](#terraform) section. Then run `make local-deploy`. This will start a
 docker image in the terminal, which exposes the cloud function on port 8080.
 
 ## Deployment

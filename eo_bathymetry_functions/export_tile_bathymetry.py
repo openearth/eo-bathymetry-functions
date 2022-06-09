@@ -104,7 +104,7 @@ def tile_to_asset(
     task.start()
     print(dumps({
         "severity": "NOTICE",
-        "message": f"exporting {asset_name} to {asset_id}",
+        "message": f"exporting {asset_name} to {asset_id}, taskid: {task.id}",
         **global_log_fields
     }))
 
@@ -175,6 +175,7 @@ def export_sdb_tiles(
     task_list: List[ee.batch.Task],
     overwrite: bool,
     bucket: Optional[str] = None,
+    asset_path: Optional[str] = None,
     global_log_fields: Optional[Dict[str, str]] = None
 ) -> List[ee.batch.Task]:
     """
@@ -191,7 +192,8 @@ def export_sdb_tiles(
         name_suffix (str): unique identifier after tile statistics.
         task_list (List[ee.batch.Task]): list of tasks, adds tasks created to this list.
         overwrite (bool): whether to overwrite the current assets under the same `asset_path`.
-        bucket (str): Bucket where the data is stored. Only used when sink = "cloud".
+        bucket (Optional(str)): Bucket where the data is stored. Only used when sink = "cloud".
+        asset_path (Optional(str)): Path where the asset will be stored. Only used when sink = "asset".
         global_log_fields (Optional(Dict)): log fields for the entire cloud function.
     
     returns:
@@ -201,9 +203,8 @@ def export_sdb_tiles(
     if not global_log_fields:
         global_log_fields: Dict[str, str] = {}
     if sink == "asset":
-        user_name: str = ee.data.getAssetRoots()[0]["id"].split("/")[-1]
-        asset_path_prefix: str = f"users/{user_name}/eo-bathymetry"
-        ee.data.create_assets(asset_ids=[asset_path_prefix], asset_type="Folder", mk_parents=True)
+        # create folder if not exists
+        ee.data.create_assets(asset_ids=[asset_path], asset_type="Folder", mk_parents=True)
     
     for i in range(num_tiles):
         # get tile
@@ -226,8 +227,8 @@ def export_sdb_tiles(
                 image=img,
                 tile=temp_tile,
                 export_scale=export_scale,
-                asset_path_prefix=asset_path_prefix,
-                asset_name=img_name,
+                asset_path_prefix=asset_path,
+                asset_name=img_name.replace("/", "_"),
                 overwrite=overwrite,
                 global_log_fields=global_log_fields
             )
@@ -259,6 +260,7 @@ def export_tiles(
     window_years: int = 2,
     overwrite: bool = False,
     bucket: Optional[str] = None,
+    asset_path: Optional[str] = None,
     global_log_fields: Optional[Dict[str, str]] = None
 ) -> None:
     """
@@ -269,20 +271,22 @@ def export_tiles(
         sink (str): type of data sink to export to. Viable options are: "asset" and "cloud".
         geometry (ee.Geometry): geometry of the area of interest.
         zoom (int): zoom level of the to-be-exported tiles.
-        start (ee.String): start date in YYYY-MM-dd format.
-        stop (ee.String): stop date in YYYY-MM-dd format.
+        start (ee.String): start date in YYYY-MM-dd format, defaults to one timestep before stop.
+        stop (ee.String): stop date in YYYY-MM-dd format, defaults to start of this month
         step_months (int): steps with which to roll the window over which the subtidal bathymetry
             is calculated.
         window_years (int): number of years over which the subtidal bathymetry is calculated.
         overwrite (bool): whether to overwrite current tiles in the sink.
         bucket (Optional(str)): bucket for sink "cloud".
+        asset_path (Optional(str)): Path where the asset will be stored. Only used when sink = "asset".
         global_log_fields (Optional(Dict)): log fields for the entire cloud function.
     """
     if not global_log_fields:
         global_log_fields: Dict[str, str] = {}
 
     if not stop:
-        stop: datetime = datetime.now()
+        now: datetime = datetime.now()
+        stop: datetime = datetime(year=now.year, month=now.month, day=1)
     else:
         stop: datetime = parse(stop)
     
@@ -335,5 +339,6 @@ def export_tiles(
             task_list=task_list,
             overwrite=overwrite,
             bucket=bucket,
+            asset_path=asset_path,
             global_log_fields=global_log_fields
         )
