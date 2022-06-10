@@ -8,8 +8,13 @@ resource "google_service_account_key" "service_account" {
   public_key_type    = "TYPE_X509_PEM_FILE"
 }
 
-resource "google_project_iam_member" "project" {
+resource "google_project_iam_member" "earthengine_writer" {
   role    = "roles/earthengine.writer"
+  member  = "serviceAccount:${google_service_account.service_account.email}"
+}
+
+resource "google_project_iam_member" "service_user" {
+  role    = "roles/serviceusage.serviceUsageConsumer"
   member  = "serviceAccount:${google_service_account.service_account.email}"
 }
 

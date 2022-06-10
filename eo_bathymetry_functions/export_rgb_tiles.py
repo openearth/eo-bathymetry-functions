@@ -1,13 +1,13 @@
-from datetime import date
 from json import dumps
 from typing import Any, Dict, List, Optional
 
 import ee
 
 from eepackages.utils import hillshadeRGB
+from eepackages.tiler import zoom_to_scale
 
 
-def hillshade(image: ee.Image) -> ee.Image:
+def hillshade_sdb(image: ee.Image) -> ee.Image:
     """
     RGB hillshading specifically for the SDB product
 
@@ -22,7 +22,9 @@ def hillshade(image: ee.Image) -> ee.Image:
     exaggeration: int = 2000
     azimuth: int = 315
     zenith: int = 35
-    return hillshadeRGB(image=image, elevation=depth, weight=weight, height_multiplier=exaggeration, azimuth=azimuth, zenith=zenith)
+    return hillshadeRGB(
+        image=image, elevation=depth, weight=weight, height_multiplier=exaggeration,
+        azimuth=azimuth, zenith=zenith).visualize()
 
 def render_subtidal(
     ic: ee.ImageCollection,
@@ -47,8 +49,8 @@ def render_subtidal(
         water: ee.Image = i.select(water_band).unitScale(water_min, water_max)
 
         return i.visualize() \
-            .blend(hillshade(i.select([0, 1, 2]).unitScale(0, 2)).updateMask(water)) \
-            .blend(water.mask(water).visualize({"palette": ["eff3ff","bdd7e7","6baed6","3182bd","08519c"], "opacity": 0.35})) \
+            .blend(hillshade_sdb(i.select([0, 1, 2]).unitScale(0, 2)).updateMask(water)) \
+            .blend(water.mask(water).visualize(palette=["eff3ff","bdd7e7","6baed6","3182bd","08519c"], opacity=0.35)) \
             .copyProperties(i, ["system:time_start"]) \
             .copyProperties(i)
     return ic.map(styling).mosaic()
@@ -68,10 +70,11 @@ def export_timestep(
     ic = ic.filterDate(t0, t1)
 
     bucket_path: str = f"sdb-rgb-v3.3/{timestep}"
+    scale: float = zoom_to_scale(max_zoom)
 
     image: ee.Image = render_subtidal(ic) \
         .reproject(ee.Projection('EPSG:3857').atScale(scale))
-    task = ee.batch.Task = ee.batch.Export.map.toCloudStorage(
+    task: ee.batch.Task = ee.batch.Export.map.toCloudStorage(
         image,
         description=f"sdb-3d-rws-{timestep}-z{max_zoom}",
         bucket=bucket,
@@ -80,8 +83,10 @@ def export_timestep(
         minZoom=min_zoom,
         maxZoom=max_zoom,
         region=geometry.bounds(scale),
-        skipEmptyTiles=True
+        skipEmptyTiles=True,
+        writePublicTiles=False  # Not bucket owner
     )
+    task.start()
 
     print(dumps({
         "severity": "NOTICE",
@@ -94,7 +99,7 @@ def export_rgb_tiles(
     min_zoom: int,
     max_zoom: int,
     bucket: str,
-    image_collection: str = "projects/deltares-rws/eo-bathymetry/subtidal",  # TODO: changeme
+    image_collection: str = "projects/bathymetry/assets/subtidal",  # TODO: changeme
     start: Optional[str] = None,
     stop: Optional[str] = None,
     global_log_fields: Optional[Dict[str, Any]] = None
@@ -114,6 +119,8 @@ def export_rgb_tiles(
     """
     if not start:
         start: str = "1970-01-01"
+    if not stop:
+        stop: str = "9999-12-31"
 
     ic: ee.ImageCollection = ee.ImageCollection(image_collection) \
         .filterDate(start, stop) \
@@ -122,7 +129,13 @@ def export_rgb_tiles(
 
     times = times.map(lambda t: ee.Date(t).format('YYYY-MM-dd'))
     times = ee.List(times).distinct()
-
-    times.evaluate(
-        lambda t: export_timestep(t, ic, min_zoom, max_zoom, geometry, bucket, global_log_fields)
-    )
+    for t in times.getInfo():
+        export_timestep(
+            timestep=t,
+            ic=ic,
+            min_zoom=min_zoom,
+            max_zoom=max_zoom,
+            geometry=geometry,
+            bucket=bucket,
+            global_log_fields=global_log_fields
+        )

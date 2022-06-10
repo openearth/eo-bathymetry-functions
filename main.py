@@ -7,7 +7,8 @@ from geojson import loads
 from jsonschema import validate
 from jsonschema.exceptions import ValidationError
 
-from eo_bathymetry_functions.export_tile_bathymetry import export_sdb_tiles, export_tiles
+from eo_bathymetry_functions.export_tile_bathymetry import export_tiles
+from eo_bathymetry_functions.export_rgb_tiles import export_rgb_tiles
 from eo_bathymetry_functions.utils import set_up_cf_logging
 
 credentials: ee.ServiceAccountCredentials = ee.ServiceAccountCredentials(environ.get("SA_EMAIL"), environ.get("SA_KEY_PATH"))
@@ -182,7 +183,7 @@ schema_export_rgb_tiles: Dict[str, Any] = {
 }
 
 
-def export_rgb_tiles(request: Request):
+def generate_rgb_tiles(request: Request):
     """
     Http Cloud function for generating RGB tiles from existing bathymetry.
     Args:
@@ -192,7 +193,6 @@ def export_rgb_tiles(request: Request):
             geometry: containing the erea of interest
             min_zoom: tile minimum zoom level
             max_zoom: tile maxumum zoom level
-            image_collection: image collection to load data from
             bucket: gcp bucket name
         
         optionally:
@@ -219,12 +219,15 @@ def export_rgb_tiles(request: Request):
     kwargs["geometry"] = ee.Geometry(loads(str(json_body["geometry"]).replace("'", "\"")))
     kwargs["min_zoom"] = json_body["min_zoom"]
     kwargs["max_zoom"] = json_body["max_zoom"]
+    kwargs["bucket"] = json_body["bucket"]
     kwargs["start"] = json_body.get("start")
     kwargs["stop"] = json_body.get("stop")
-    kwargs["collection"] = json_body.get("image_collection")
-    kwargs["bucket"] = json_body["bucket"]
+
+    opt_image_collection: Optional[str] = json_body.get("image_collection")
+    if opt_image_collection:
+        kwargs["image_collection"] = opt_image_collection
         
-    export_sdb_tiles(
+    export_rgb_tiles(
         **kwargs,
         global_log_fields=global_log_fields
     )
