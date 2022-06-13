@@ -142,7 +142,7 @@ resource "google_cloudfunctions_function_iam_member" "invoker" {
 }
 
 resource "google_cloud_scheduler_job" "query_bathymetry_geo" {
-  for_each = var.job_configs
+  for_each = var.sdb_job_configs
   name             = each.key
   description      = each.value["description"]
   schedule         = each.value["cron_schedule"]
@@ -157,7 +157,32 @@ resource "google_cloud_scheduler_job" "query_bathymetry_geo" {
     http_method = each.value["http_method"]
     uri         = each.value["uri"]
     body        = base64encode(templatefile(
-      "${path.module}/request.tpl",
+      "${path.module}/request_sdb.tpl",
+      merge(each.value, {bucket=var.bucket_name})
+    ))
+    headers     = {"Content-Type" = "application/json"}
+  }
+
+  depends_on = [google_cloudfunctions_function.function]
+}
+
+resource "google_cloud_scheduler_job" "query_rgb_geo" {
+  for_each = var.rgb_job_configs
+  name             = each.key
+  description      = each.value["description"]
+  schedule         = each.value["cron_schedule"]
+  time_zone        = each.value["time_zone"]
+  attempt_deadline = "320s"
+
+  retry_config {
+    retry_count = 1
+  }
+
+  http_target {
+    http_method = each.value["http_method"]
+    uri         = each.value["uri"]
+    body        = base64encode(templatefile(
+      "${path.module}/request_rgb.tpl",
       merge(each.value, {bucket=var.bucket_name})
     ))
     headers     = {"Content-Type" = "application/json"}

@@ -65,7 +65,7 @@ variable project {
   description = "project name"
 }
 
-variable job_configs {
+variable sdb_job_configs {
   type        = map(
     object({
       description = string,
@@ -79,6 +79,23 @@ variable job_configs {
       window_years = number,
     })
   )
-  description = "configuration for the cron-based cloud scheduler jobs."
-  default = {}
+  description = "configuration for the cron-based cloud scheduler sdb jobs."
+  default     = {}
+}
+
+variable rgb_job_configs {
+type        = map(
+    object({
+      description = string,
+      cron_schedule = string,
+      time_zone = string,
+      http_method = string,
+      uri = string,
+      coordinates = list(tuple([number, number])),
+      max_zoom = number,
+      min_zoom = number
+    })
+  )
+  description = "configuration for the cron-based cloud scheduler rgb jobs."
+  default     = {}
 }
