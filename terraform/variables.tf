@@ -10,12 +10,6 @@ variable region {
   description = "Location of bucket"
 }
 
-variable cloudfunction_name {
-  type        = string
-  default     = "export-tile-bathymetry"
-  description = "name of the cloud function"
-}
-
 variable service_account_name {
   type        = string
   default     = "eo-bathymetry-automation"
@@ -24,14 +18,30 @@ variable service_account_name {
 
 variable service_account_key_path {
   type        = string
-  default     = "/etc/secrets/eo-bathymetry-sa-key.json"
-  description = "path where the private key of the service account is mounted in the cloudfunction image."
+  default     = "/etc/secrets/eo-bathymetry-sa-key"
+  description = <<EOT
+    path where the private key of the service account is mounted in the
+    cloudfunction image.
+  EOT
 }
 
-variable cloudfunction_entrypoint {
+variable service_account_key_subpath {
   type        = string
-  default     = "generate_bathymetry"
-  description = "name of the function that will function as the entrypoint"
+  default     = "/key.json"
+  description = <<EOT
+    subpath where the private key of the service account is mounted in the
+    cloudfunction image. Has to start with a forward-slash.
+  EOT
+}
+
+variable cloudfunction_entrypoints {
+  type        = map(string)
+  default     = {
+    "generate-bathymetry" = "generate_bathymetry",
+    "generate-rgb-tiles"  = "generate_rgb_tiles"
+
+  }
+  description = "map of the name of the cloud function plus the python names of their entrypoints."
 }
 
 variable function_memory {
