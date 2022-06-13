@@ -8,14 +8,14 @@ from jsonschema import validate
 from jsonschema.exceptions import ValidationError
 
 from eo_bathymetry_functions.export_tile_bathymetry import export_tiles
+from eo_bathymetry_functions.export_rgb_tiles import export_rgb_tiles
+from eo_bathymetry_functions.utils import set_up_cf_logging
 
 credentials: ee.ServiceAccountCredentials = ee.ServiceAccountCredentials(environ.get("SA_EMAIL"), environ.get("SA_KEY_PATH"))
 ee.Initialize(credentials=credentials)
 
-PROJECT = environ.get("PROJECT")
-
 # Create json schema to verify
-schema: Dict[str, Any] = {
+schema_generate_bathymetry: Dict[str, Any] = {
     "type": "object",
     "properties": {
         "geometry": {
@@ -85,7 +85,10 @@ def generate_bathymetry(request: Request):
                 subtidal bathymetry.
             zoom: earth engine zoom level.
             sink: json object describing the data sink. Can either be:
-                {"type": "cloud", "bucket": "bucket_name"} or {"type": "asset"}
+                {"type": "cloud", "bucket": "bucket_name"}
+                or {"type": "asset", "asset_path": "path/to/asset"}
+                asset path should point to ImageCollection or Folder, names of images are generated
+                automatically based on tile and time
         
         optionally:
             start: date string as YYYY-MM-dd, where the analysis starts.
@@ -99,15 +102,11 @@ def generate_bathymetry(request: Request):
         <https://flask.palletsprojects.com/en/1.1.x/api/#flask.make_response>.
     """
     # Setup logging in cloud function
-    global_log_fields: Dict[str, str] = {}
-    trace_header: str = request.headers.get("X-Cloud-Trace-Context")
-    if trace_header and PROJECT:
-        trace = trace_header.split("/")
-        global_log_fields["logging.googleapis.com/trace"] = f"projects/{PROJECT}/traces/{trace[0]}"
+    global_log_fields: Dict[str, str] = set_up_cf_logging(request)
 
     json_body: Dict[any, str] = request.get_json()
     try:
-        validate(instance=json_body, schema=schema)
+        validate(instance=json_body, schema=schema_generate_bathymetry)
     except (ValidationError) as e:
         return Response(e.message, status=400)
 
@@ -130,6 +129,105 @@ def generate_bathymetry(request: Request):
         kwargs["window_years"] = int(window_years_opt)
         
     export_tiles(
+        **kwargs,
+        global_log_fields=global_log_fields
+    )
+
+    return Response(status=200)
+
+schema_export_rgb_tiles: Dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "geometry": {
+            "type": "object",
+            "properties": {
+                "type": {"enum": ["Polygon"]},
+                "coordinates": {
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "items": {type: "number"},
+                            "minItems": 2,
+                            "maxItems": 2
+                        }
+                    }
+                }
+            },
+            "required": ["coordinates"]
+        },
+        "max_zoom": {
+            "type": "number"
+        },
+        "min_zoom": {
+            "type": "number"
+        },
+        "start": {
+            "type": "string",
+            "pattern": "\d{4}-\d{2}-\d{2}"
+        },
+        "stop": {
+            "type": "string",
+            "pattern": "\d{4}-\d{2}-\d{2}"
+        },
+        "image_collection": {
+            "type": "string"
+            # TODO: validation here
+        },
+        "bucket": {
+            "type": "string",
+            "pattern": "[\w\-]{3,62}|(?=.*\.)[\w\-\.]{3,222}"
+        }
+    },
+    "required": ["geometry", "min_zoom", "max_zoom", "bucket"]
+}
+
+
+def generate_rgb_tiles(request: Request):
+    """
+    Http Cloud function for generating RGB tiles from existing bathymetry.
+    Args:
+        request (flask.Request): the Request object.
+        <https://flask.palletsprojects.com/en/1.1.x/api/#incoming-request-data>
+        Requires the following body:
+            geometry: containing the erea of interest
+            min_zoom: tile minimum zoom level
+            max_zoom: tile maxumum zoom level
+            bucket: gcp bucket name
+        
+        optionally:
+            image_collection: image_collection to load from. Defaults to TODO
+            start: date string as YYYY-MM-dd, where the analysis starts.
+            stop: date string as YYYY-MM-dd, where the analysis stops.
+        
+    Returns:
+        The response text, or any set of values that can be turned into a
+        Response object using `make_response`
+        <https://flask.palletsprojects.com/en/1.1.x/api/#flask.make_response>.
+    """
+    # Setup logging in cloud function
+    global_log_fields: Dict[str, str] = set_up_cf_logging(request)
+
+    json_body: Dict[any, str] = request.get_json()
+    try:
+        validate(instance=json_body, schema=schema_export_rgb_tiles)
+    except (ValidationError) as e:
+        return Response(e.message, status=400)
+
+    kwargs: Dict[str, Any] = {}
+
+    kwargs["geometry"] = ee.Geometry(loads(str(json_body["geometry"]).replace("'", "\"")))
+    kwargs["min_zoom"] = json_body["min_zoom"]
+    kwargs["max_zoom"] = json_body["max_zoom"]
+    kwargs["bucket"] = json_body["bucket"]
+    kwargs["start"] = json_body.get("start")
+    kwargs["stop"] = json_body.get("stop")
+
+    opt_image_collection: Optional[str] = json_body.get("image_collection")
+    if opt_image_collection:
+        kwargs["image_collection"] = opt_image_collection
+        
+    export_rgb_tiles(
         **kwargs,
         global_log_fields=global_log_fields
     )

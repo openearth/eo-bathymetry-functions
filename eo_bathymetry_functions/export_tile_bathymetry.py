@@ -1,16 +1,15 @@
 from ctypes import ArgumentError
 from datetime import date as Date
-from datetime import datetime, timedelta
 from json import dumps
 from typing import Any, Dict, List, Optional, Tuple
 from re import sub
 
-from dateutil.parser import parse
-from dateutil.relativedelta import relativedelta
 import ee
 from eepackages.applications.bathymetry import Bathymetry
 from eepackages import tiler
 from googleapiclient.discovery import build
+
+from eo_bathymetry_functions.utils import get_rolling_window_dates
 
 
 def get_tile_bathymetry(tile: ee.Feature, start: ee.String, stop: ee.String) -> ee.Image:
@@ -160,7 +159,7 @@ def tile_to_cloud_storage(
     task.start()
     print(dumps({
         "severity": "NOTICE",
-        "message": f"exporting tile to bucket {bucket}/{bucket_path}",
+        "message": f"exporting tile to bucket {bucket}/{bucket_path}, taskid: {task.id}",
         **global_log_fields
     }))
     return task
@@ -186,7 +185,7 @@ def export_sdb_tiles(
         sink (str): type of data sink to export to. Viable options are: "asset" and "cloud".
         tile_list (ee.List): list of tile features.
         num_tiles (int): number of tiles in `tile_list`.
-        scale (int): scale of the export product.
+        export_scale (int): scale of the export product.
         sdb_tiles (ee.ImageCollection): collection of subtidal bathymetry images corresponding
             to input tiles.
         name_suffix (str): unique identifier after tile statistics.
@@ -283,33 +282,8 @@ def export_tiles(
     """
     if not global_log_fields:
         global_log_fields: Dict[str, str] = {}
-
-    if not stop:
-        now: datetime = datetime.now()
-        stop: datetime = datetime(year=now.year, month=now.month, day=1)
-    else:
-        stop: datetime = parse(stop)
     
-    # Make sure that an undefined start call takes two timesteps for processing
-    if not start:
-        start = stop - relativedelta(years=window_years) - relativedelta(months=step_months)
-    else:
-        start: datetime = parse(start)
-
-    def rolling_time_window(start: Date, stop: Date, dt: relativedelta, window_length: relativedelta) -> List[Tuple[Date]]:
-        if stop - start < timedelta.resolution:
-            raise RuntimeError("Stop and Start too close")
-        
-        window_list: List[Tuple[Date]] = []
-        t: Date = start
-        while t <= stop - window_length:
-            window_list.append((str(t), str(t+window_length)))
-            t += dt
-        return window_list
-    
-    start_date: Date = Date(year=start.year, month=start.month, day=start.day)
-    stop_date: Date = Date(year=stop.year, month=stop.month, day=stop.day)
-    dates: List[Tuple[Date]] = rolling_time_window(start_date, stop_date, relativedelta(months=step_months), relativedelta(years=window_years))
+    dates: List[Tuple[Date]] = get_rolling_window_dates(start, stop, step_months, window_years)
     
     # Get tiles
     tiles: ee.FeatureCollection = tiler.get_tiles_for_geometry(geometry, ee.Number(zoom))

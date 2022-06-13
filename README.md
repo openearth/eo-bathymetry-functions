@@ -21,8 +21,10 @@ When developing, use `make get_tf_key` to get your service account setup. Then y
 
 ## Local Development
 Install docker, pack cli, terraform, install gcloud and login to the bathymetry project as
-described in the [terraform](#terraform) section. Then run `make local-deploy`. This will start a
-docker image in the terminal, which exposes the cloud function on port 8080.
+described in the [terraform](#terraform) section. 2 Cloud Functions are used.
+To test calculating and exporting bathymetrt, use: `make local_deploy_sdb`.
+To test exporting the hillshaded tiles, use: `make local_deploy_rgb`.
+These commands start a docker image in the terminal, which exposes the cloud function on port 8080.
 
 ## Deployment
 `make deploy`

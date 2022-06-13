@@ -5,7 +5,7 @@ output sa_email {
 }
 
 output sa_key_path {
-  value       = var.service_account_key_path
+  value       = "${var.service_account_key_path}${var.service_account_key_subpath}"
   sensitive   = false
   description = "path on the docker image where the service account key is located"
 }
