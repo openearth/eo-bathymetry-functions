@@ -5,6 +5,7 @@ import ee
 
 from eepackages.utils import hillshadeRGB
 from eepackages.tiler import zoom_to_scale
+from eo_bathymetry_functions.utils import get_rolling_window_dates
 
 
 def hillshade_sdb(image: ee.Image) -> ee.Image:
@@ -90,7 +91,7 @@ def export_timestep(
 
     print(dumps({
         "severity": "NOTICE",
-        "message": f"exporting tile to bucket {bucket}/{bucket_path}, taskid: {task.id}",
+        "message": f"exporting tiles to bucket {bucket}/{bucket_path}, taskid: {task.id}",
         **global_log_fields
     }))
 
@@ -99,7 +100,7 @@ def export_rgb_tiles(
     min_zoom: int,
     max_zoom: int,
     bucket: str,
-    image_collection: str = "projects/bathymetry/assets/subtidal",  # TODO: changeme
+    image_collection: str,
     start: Optional[str] = None,
     stop: Optional[str] = None,
     global_log_fields: Optional[Dict[str, Any]] = None
@@ -120,7 +121,7 @@ def export_rgb_tiles(
     if not start:
         start: str = "1970-01-01"
     if not stop:
-        stop: str = "9999-12-31"
+        stop: str = "9999-12-31" 
 
     ic: ee.ImageCollection = ee.ImageCollection(image_collection) \
         .filterDate(start, stop) \

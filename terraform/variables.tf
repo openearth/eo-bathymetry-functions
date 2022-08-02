@@ -75,6 +75,7 @@ variable sdb_job_configs {
       uri = string,
       coordinates = list(tuple([number, number])),
       zoom = number,
+      export_zoom = number,
       step_months = number,
       window_years = number,
     })

@@ -6,10 +6,11 @@ ${jsonencode(coordinates)}
         ]
     },
     "zoom": ${zoom},
+    "export_zoom": ${export_zoom},
     "step_months": ${step_months},
     "window_years": ${window_years},
     "sink": {
-        "type": "cloud",
-        "bucket": "${bucket}"
+        "type": "asset",
+        "asset_path": "${asset_path}"
     }
 }

@@ -1,5 +1,5 @@
 eepackages==0.17.0
-earthengine-api==0.1.312
+earthengine-api==0.1.317
 flask==2.0.2
 geojson==2.5.0
 jsonschema==4.1.0

@@ -34,14 +34,14 @@ def get_rolling_window_dates(
     else:
         stop: datetime = parse(stop)
     
-    # Make sure that an undefined start call takes two timesteps for processing
+    # Make sure that an undefined start call takes one timestep for processing
     if not start:
-        start = stop - relativedelta(years=window_years) - relativedelta(months=step_months)
+        start = stop - relativedelta(years=window_years)  # - relativedelta(months=step_months)
     else:
         start: datetime = parse(start)
 
     def rolling_time_window(start: Date, stop: Date, dt: relativedelta, window_length: relativedelta) -> List[Tuple[Date]]:
-        if stop - start < timedelta.resolution:
+        if stop - start <= timedelta.resolution:
             raise RuntimeError("Stop and Start too close")
         
         window_list: List[Tuple[Date]] = []

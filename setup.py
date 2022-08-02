@@ -26,7 +26,8 @@ setup(
     packages=find_packages(exclude=('tests',)),
 
     install_requires=[
-        "eepackages==0.6.1",
+        "eepackages==0.17.0",
+        "earthengine-api==0.1.317",
         "geojson>=2.5.0",
         "google-api-python-client>=1.12.8",
         "python-dateutil>=2.8.2",
