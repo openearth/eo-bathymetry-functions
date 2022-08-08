@@ -22,7 +22,7 @@ When developing, use `make get_tf_key` to get your service account setup. Then y
 ## Local Development
 Install docker, pack cli, terraform, install gcloud and login to the bathymetry project as
 described in the [terraform](#terraform) section. 2 Cloud Functions are used.
-To test calculating and exporting bathymetrt, use: `make local_deploy_sdb`.
+To test calculating and exporting bathymetry, use: `make local_deploy_sdb`.
 To test exporting the hillshaded tiles, use: `make local_deploy_rgb`.
 These commands start a docker image in the terminal, which exposes the cloud function on port 8080.
 
@@ -33,6 +33,12 @@ These commands start a docker image in the terminal, which exposes the cloud fun
 When adding a scheduler, add to the `job_configs` terraform variable in
 `./terraform/workspaces/defaults.tfvars`, where the key is the name of the scheduler.
 
-### TODO
+## Limitations
+
+Due to the current implementation, this api needs to wait a few times on the earthengine api.
+CloudFunctions times out at max 10 minutes. To create many tiles in one go (>100), please query
+this api multiple times with different parameters.
+
+## TODO
 - Client side encryption: We can encrypt the terraform state at client side to enhance security.
     when secrets are used in the `variables.tf`.

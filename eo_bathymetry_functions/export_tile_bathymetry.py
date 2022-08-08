@@ -253,6 +253,7 @@ def export_tiles(
     sink: str,
     geometry: ee.Geometry,
     zoom: int,
+    export_zoom: Optional[int] = None,
     start: Optional[str] = None,
     stop: Optional[str] = None,
     step_months: int = 3,
@@ -270,6 +271,7 @@ def export_tiles(
         sink (str): type of data sink to export to. Viable options are: "asset" and "cloud".
         geometry (ee.Geometry): geometry of the area of interest.
         zoom (int): zoom level of the to-be-exported tiles.
+        export_zoom (int): zoom level for determining resolution of export tiles.
         start (ee.String): start date in YYYY-MM-dd format, defaults to one timestep before stop.
         stop (ee.String): stop date in YYYY-MM-dd format, defaults to start of this month
         step_months (int): steps with which to roll the window over which the subtidal bathymetry
@@ -283,12 +285,15 @@ def export_tiles(
     if not global_log_fields:
         global_log_fields: Dict[str, str] = {}
     
+    if not export_zoom:
+        export_zoom = zoom
+    
     dates: List[Tuple[Date]] = get_rolling_window_dates(start, stop, step_months, window_years)
     
     # Get tiles
     tiles: ee.FeatureCollection = tiler.get_tiles_for_geometry(geometry, ee.Number(zoom))
 
-    scale: float = tiler.zoom_to_scale(zoom).getInfo()
+    scale: float = tiler.zoom_to_scale(export_zoom).getInfo()
     task_list: List[ee.batch.Task] = []
     num_tiles: int = tiles.size().getInfo()
     tile_list: ee.List = tiles.toList(num_tiles)

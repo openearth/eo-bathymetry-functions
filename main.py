@@ -39,6 +39,9 @@ schema_generate_bathymetry: Dict[str, Any] = {
         "zoom": {
             "type": "number"
         },
+        "export_zoom": {
+            "type": "number"
+        },
         "start": {
             "type": "string",
             "pattern": "\d{4}-\d{2}-\d{2}"
@@ -83,7 +86,7 @@ def generate_bathymetry(request: Request):
         Requires the following body:
             geometry: (Geo)JSON representation of the Geometry that will be used to calculate the
                 subtidal bathymetry.
-            zoom: earth engine zoom level.
+            zoom: earth engine zoom level for creating tiles.
             sink: json object describing the data sink. Can either be:
                 {"type": "cloud", "bucket": "bucket_name"}
                 or {"type": "asset", "asset_path": "path/to/asset"}
@@ -95,6 +98,9 @@ def generate_bathymetry(request: Request):
             stop: date string as YYYY-MM-dd, where the analysis stops.
             step_months: number of months to include in each timestep, defaults to 3.
             window_years: number of years to include in the analysis, defaults to 2.
+            export_zoom: zoom level for export quality. Defaults to zoom. Used internally to
+                determine the quality of the exported image. Larger zoom number result in more
+                calculations, but higher resolution images.
         
     Returns:
         The response text, or any set of values that can be turned into a
@@ -114,6 +120,7 @@ def generate_bathymetry(request: Request):
 
     kwargs["geometry"] = ee.Geometry(loads(str(json_body["geometry"]).replace("'", "\"")))
     kwargs["zoom"] = json_body["zoom"]
+    kwargs["export_zoom"] = json_body.get("export_zoom")
     kwargs["start"] = json_body.get("start")
     kwargs["stop"] = json_body.get("stop")
     kwargs["sink"] = json_body["sink"]["type"]

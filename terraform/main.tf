@@ -158,7 +158,7 @@ resource "google_cloud_scheduler_job" "query_bathymetry_geo" {
     uri         = each.value["uri"]
     body        = base64encode(templatefile(
       "${path.module}/request_sdb.tpl",
-      merge(each.value, {bucket=var.bucket_name})
+      each.value
     ))
     headers     = {"Content-Type" = "application/json"}
   }

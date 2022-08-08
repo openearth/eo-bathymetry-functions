@@ -1,3 +1,4 @@
+from datetime import datetime
 from json import dumps
 from typing import Any, Dict, List, Optional
 
@@ -72,8 +73,7 @@ def export_timestep(
     bucket_path: str = f"sdb-rgb-v3.3/{timestep}"
     scale: float = zoom_to_scale(max_zoom)
 
-    image: ee.Image = render_subtidal(ic) \
-        .reproject(ee.Projection('EPSG:3857').atScale(scale))
+    image: ee.Image = render_subtidal(ic)
     task: ee.batch.Task = ee.batch.Export.map.toCloudStorage(
         image,
         description=f"sdb-3d-rws-{timestep}-z{max_zoom}",
@@ -90,7 +90,7 @@ def export_timestep(
 
     print(dumps({
         "severity": "NOTICE",
-        "message": f"exporting tile to bucket {bucket}/{bucket_path}, taskid: {task.id}",
+        "message": f"exporting tiles to bucket {bucket}/{bucket_path}, taskid: {task.id}",
         **global_log_fields
     }))
 
@@ -99,7 +99,7 @@ def export_rgb_tiles(
     min_zoom: int,
     max_zoom: int,
     bucket: str,
-    image_collection: str = "projects/bathymetry/assets/subtidal",  # TODO: changeme
+    image_collection: str,
     start: Optional[str] = None,
     stop: Optional[str] = None,
     global_log_fields: Optional[Dict[str, Any]] = None
@@ -118,10 +118,14 @@ def export_rgb_tiles(
 
     """
     if not start:
-        start: str = "1970-01-01"
+        start: str = ee.Date(
+            ee.ImageCollection(image_collection).aggregate_max("system:time_start")
+        ).format("YYYY-MM-dd").getInfo()
     if not stop:
-        stop: str = "9999-12-31"
-
+        now: datetime = datetime.now()
+        stop: datetime = datetime(year=now.year, month=now.month, day=1)
+    if start > stop:
+        raise RuntimeError("Stop and Start too close")
     ic: ee.ImageCollection = ee.ImageCollection(image_collection) \
         .filterDate(start, stop) \
         .filterBounds(geometry)
