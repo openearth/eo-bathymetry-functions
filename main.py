@@ -6,13 +6,15 @@ from flask import Request, Response
 from geojson import loads
 from jsonschema import validate
 from jsonschema.exceptions import ValidationError
+from retry.api import retry_call
+from urllib3.exceptions import NewConnectionError
 
 from eo_bathymetry_functions.export_tile_bathymetry import export_tiles
 from eo_bathymetry_functions.export_rgb_tiles import export_rgb_tiles
 from eo_bathymetry_functions.utils import set_up_cf_logging
 
 credentials: ee.ServiceAccountCredentials = ee.ServiceAccountCredentials(environ.get("SA_EMAIL"), environ.get("SA_KEY_PATH"))
-ee.Initialize(credentials=credentials)
+retry_call(ee.Initialize, tries=3, delay=1, exceptions=[NewConnectionError], fkwargs={"credentials": credentials})
 
 # Create json schema to verify
 schema_generate_bathymetry: Dict[str, Any] = {
@@ -49,6 +51,9 @@ schema_generate_bathymetry: Dict[str, Any] = {
         "stop": {
             "type": "string",
             "pattern": "\d{4}-\d{2}-\d{2}"
+        },
+        "overwrite": {
+            "type": "boolean"
         },
         "sink": {
             "type": "object",
@@ -96,6 +101,7 @@ def generate_bathymetry(request: Request):
         optionally:
             start: date string as YYYY-MM-dd, where the analysis starts.
             stop: date string as YYYY-MM-dd, where the analysis stops.
+            overwrite: whether to overwrite the current output, defaults to false.
             step_months: number of months to include in each timestep, defaults to 3.
             window_years: number of years to include in the analysis, defaults to 2.
             export_zoom: zoom level for export quality. Defaults to zoom. Used internally to
@@ -128,12 +134,16 @@ def generate_bathymetry(request: Request):
     kwargs["asset_path"] = json_body["sink"].get("asset_path")
     step_months_opt: Optional[Union[int, float]] = json_body.get("step_months")
     window_years_opt: Optional[Union[int, float]] = json_body.get("step_months")
+    overwrite_opt: Optional[bool] = json_body.get("overwrite")
     
     if step_months_opt:
         kwargs["step_months"] = int(step_months_opt)
     
     if window_years_opt:
         kwargs["window_years"] = int(window_years_opt)
+    
+    if overwrite_opt:
+        kwargs["overwrite"] = overwrite_opt
         
     export_tiles(
         **kwargs,
@@ -184,6 +194,9 @@ schema_export_rgb_tiles: Dict[str, Any] = {
         "bucket": {
             "type": "string",
             "pattern": "[\w\-]{3,62}|(?=.*\.)[\w\-\.]{3,222}"
+        },
+        "bucket_prefix": {
+            "type": "string"
         }
     },
     "required": ["geometry", "min_zoom", "max_zoom", "bucket"]
@@ -227,6 +240,7 @@ def generate_rgb_tiles(request: Request):
     kwargs["min_zoom"] = json_body["min_zoom"]
     kwargs["max_zoom"] = json_body["max_zoom"]
     kwargs["bucket"] = json_body["bucket"]
+    kwargs["bucket_prefix"] = json_body.get("bucket_prefix")
     kwargs["start"] = json_body.get("start")
     kwargs["stop"] = json_body.get("stop")
 

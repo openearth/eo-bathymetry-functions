@@ -1,4 +1,5 @@
 from datetime import datetime
+from dateutil.parser import parse
 from json import dumps
 from typing import Any, Dict, List, Optional
 
@@ -63,6 +64,7 @@ def export_timestep(
     max_zoom: int,
     geometry: ee.Geometry,
     bucket: str,
+    bucket_prefix: str,
     global_log_fields: Dict[str, str]
 ) -> List[ee.batch.Task]:
     # filter date is left-inclusive
@@ -70,10 +72,11 @@ def export_timestep(
     t1: ee.Date = t0.advance(1, "day")
     ic = ic.filterDate(t0, t1)
 
-    bucket_path: str = f"sdb-rgb-v3.3/{timestep}"
+    bucket_path: str = f"{bucket_prefix}/{timestep}"
     scale: float = zoom_to_scale(max_zoom)
 
-    image: ee.Image = render_subtidal(ic)
+    image: ee.Image = render_subtidal(ic) # .reproject('EPSG:3857')  # .reproject(
+        # ee.Projection('EPSG:3857').atScale(zoom_to_scale(max_zoom)))
     task: ee.batch.Task = ee.batch.Export.map.toCloudStorage(
         image,
         description=f"sdb-3d-rws-{timestep}-z{max_zoom}",
@@ -99,6 +102,7 @@ def export_rgb_tiles(
     min_zoom: int,
     max_zoom: int,
     bucket: str,
+    bucket_prefix: Optional[str],
     image_collection: str,
     start: Optional[str] = None,
     stop: Optional[str] = None,
@@ -110,6 +114,7 @@ def export_rgb_tiles(
         min_zoom (int): tile minimum zoom level.
         max_zoom (int): tile maxumum zoom level.
         bucket (str): gcp bucket name.
+        bucket_prefix (str): gcp bucket prefix
         image_collection (str): ImageCollection from where to import the bathymetry data.
         start (str): date string as YYYY-MM-dd, where the export starts.
         stop (str): date string as YYYY-MM-dd, where the export stops.
@@ -117,10 +122,12 @@ def export_rgb_tiles(
     Returns:
 
     """
+    if not bucket_prefix:
+        bucket_prefix = "sdb-tiles"
     if not start:
-        start: str = ee.Date(
+        start: datetime = parse(ee.Date(
             ee.ImageCollection(image_collection).aggregate_max("system:time_start")
-        ).format("YYYY-MM-dd").getInfo()
+        ).format("YYYY-MM-dd").getInfo())
     if not stop:
         now: datetime = datetime.now()
         stop: datetime = datetime(year=now.year, month=now.month, day=1)
@@ -141,5 +148,6 @@ def export_rgb_tiles(
             max_zoom=max_zoom,
             geometry=geometry,
             bucket=bucket,
+            bucket_prefix=bucket_prefix,
             global_log_fields=global_log_fields
         )

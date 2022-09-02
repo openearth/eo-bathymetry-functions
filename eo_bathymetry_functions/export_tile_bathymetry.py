@@ -12,6 +12,8 @@ from googleapiclient.discovery import build
 from eo_bathymetry_functions.utils import get_rolling_window_dates
 
 
+LEGACY_ASSET_PREFIX: str = "projects/earthengine-legacy/assets"
+
 def get_tile_bathymetry(tile: ee.Feature, start: ee.String, stop: ee.String) -> ee.Image:
     """
     Get subtidal bathymetry based on tile geometry.
@@ -78,14 +80,14 @@ def tile_to_asset(
     if not global_log_fields:
         global_log_fields: Dict[str, str] = {}
     asset_id: str = f"{asset_path_prefix}/{asset_name}"
-    asset: Dict[str, Any] = ee.data.getInfo(asset_id)
+    asset: Dict[str, Any] = ee.data.getInfo(f"{LEGACY_ASSET_PREFIX}/{asset_id}")
     if overwrite and asset:
         print(dumps({
             "severity": "NOTICE",
-            "message": f"deleting asset {asset}",
+            "message": f"deleting asset {asset_name}",
             **global_log_fields
         }))
-        ee.data.deleteAsset(asset_id)
+        ee.data.deleteAsset(f"{LEGACY_ASSET_PREFIX}/{asset_id}")
     elif asset:
         print(dumps({
             "severity": "NOTICE",
@@ -93,12 +95,16 @@ def tile_to_asset(
             **global_log_fields
         }))
         return
+
+    bounds: ee.Geometry = tile.geometry().buffer(export_scale).bounds()
     task: ee.batch.Task = ee.batch.Export.image.toAsset(
         image,
         assetId=asset_id,
         description=asset_name,
-        region=tile.geometry(),
-        scale=export_scale
+        region=bounds,
+        scale=export_scale,
+        crs="EPSG:3857",
+        maxPixels=1e10
     )
     task.start()
     print(dumps({
@@ -147,14 +153,18 @@ def tile_to_cloud_storage(
                 **global_log_fields
             }))
             return
+    
+    bounds: ee.Geometry = tile.geometry().buffer(export_scale).bounds()
         
     task: ee.batch.Task = ee.batch.Export.image.toCloudStorage(
         image,
         bucket=bucket,
         description=bucket_path.replace("/", "_"),
         fileNamePrefix=bucket_path,
-        region=tile.geometry(),
-        scale=export_scale
+        region=bounds,
+        scale=export_scale,
+        crs="EPSG:3857",
+        maxPixels=1e10
     )
     task.start()
     print(dumps({
@@ -258,7 +268,7 @@ def export_tiles(
     stop: Optional[str] = None,
     step_months: int = 3,
     window_years: int = 2,
-    overwrite: bool = False,
+    overwrite: Optional[bool] = False,
     bucket: Optional[str] = None,
     asset_path: Optional[str] = None,
     global_log_fields: Optional[Dict[str, str]] = None

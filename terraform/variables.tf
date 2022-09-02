@@ -4,6 +4,12 @@ variable bucket_name {
   description = "Bucket to storage automatically generated images."
 }
 
+variable public_bucket_name {
+  type        = string
+  default     = "eo-bathymetry"
+  description = "Bucket to store public data"
+}
+
 variable region {
   type        = string
   default     = "EUROPE-WEST1"  # Netherlands
@@ -74,6 +80,7 @@ variable sdb_job_configs {
       http_method = string,
       uri = string,
       coordinates = list(tuple([number, number])),
+      asset_path = string
       zoom = number,
       export_zoom = number,
       step_months = number,
@@ -93,6 +100,7 @@ type        = map(
       http_method = string,
       uri = string,
       coordinates = list(tuple([number, number])),
+      image_collection = string,
       max_zoom = number,
       min_zoom = number
     })

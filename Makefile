@@ -23,7 +23,8 @@ build_rgb:
 	rgb-function
 
 get_secrets:
-	gcloud secrets versions access 1 --secret="eo-bathymetry-sa-key" --format='get(payload.data)' | tr '_-' '/+' | base64 -d > gcloud_dist/$(sa_key_name)
+	mkdir -p gcloud_dist
+	gcloud secrets versions access "latest" --secret="eo-bathymetry-sa-key" --format='get(payload.data)' | tr '_-' '/+' | base64 -d > gcloud_dist/$(sa_key_name)
 
 local_deploy_sdb: build_sdb get_secrets
 	docker run \

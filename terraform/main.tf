@@ -1,3 +1,7 @@
+data "google_storage_bucket" "public_bucket" {
+  name = var.public_bucket_name
+}
+
 resource "google_service_account" "service_account" {
   account_id   = var.service_account_name
   display_name = "EO-Bathymetry service account."
@@ -53,7 +57,10 @@ resource "google_storage_bucket" "bathymetry_data" {
 
 module "storage_bucket-iam-bindings" {
   source          = "terraform-google-modules/iam/google//modules/storage_buckets_iam"
-  storage_buckets = [google_storage_bucket.bathymetry_data.name]
+  storage_buckets = [
+    google_storage_bucket.bathymetry_data.name,
+    data.google_storage_bucket.public_bucket.name
+  ]
   mode            = "additive"
 
   bindings = {
@@ -90,7 +97,6 @@ resource "google_storage_bucket_object" "archive" {
   depends_on = [null_resource.create_zip_archive]
 }
 
-# Below is commented as using secrets is still in beta
 resource "google_cloudfunctions_function" "function" {
   for_each    = var.cloudfunction_entrypoints
   name        = each.key

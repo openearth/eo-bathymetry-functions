@@ -63,7 +63,7 @@ sdb_job_configs = {
         export_zoom = 13,
         step_months = 3,
         window_years = 2,
-        asset_path = "projects/deltares-rws/eo-bathymetry/test-collection"
+        asset_path = "projects/deltares-rws/eo-bathymetry/depth-uncalibrated"
     }
 }
 
@@ -127,7 +127,8 @@ rgb_job_configs = {
         cron_schedule = "0 1 2 */3 *",  # 01:00 the 2nd day of every 3rd month (March / June / September / December)
         time_zone = "Europe/Amsterdam",
         http_method = "POST",
-        uri = "https://europe-west1-bathymetry.cloudfunctions.net/export-tile-bathymetry",  # TODO: get this output in terraform
+        uri = "https://europe-west1-bathymetry.cloudfunctions.net/generate-rgb-tiles",  # TODO: get this output in terraform
+        image_collection = "projects/deltares-rws/eo-bathymetry/depth-uncalibrated",
         min_zoom = 0,
         max_zoom = 13
     }

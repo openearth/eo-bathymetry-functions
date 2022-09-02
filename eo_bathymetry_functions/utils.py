@@ -41,7 +41,7 @@ def get_rolling_window_dates(
         start: datetime = parse(start)
 
     def rolling_time_window(start: Date, stop: Date, dt: relativedelta, window_length: relativedelta) -> List[Tuple[Date]]:
-        if stop - start <= timedelta.resolution:
+        if stop - window_length - start < timedelta(0):
             raise RuntimeError("Stop and Start too close")
         
         window_list: List[Tuple[Date]] = []
