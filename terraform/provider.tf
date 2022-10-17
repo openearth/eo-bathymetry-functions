@@ -8,23 +8,23 @@ terraform {
   }
   required_providers {
     google = {
-      source = "hashicorp/google"
+      source  = "hashicorp/google"
       version = "~> 4.22.0"
     }
     null = {
-      source = "hashicorp/null"
+      source  = "hashicorp/null"
       version = "3.1.0"
     }
     random = {
-      source = "hashicorp/random"
+      source  = "hashicorp/random"
       version = "3.1.0"
     }
   }
 }
 
 provider "google" {
-  project = var.project
-  region = lower(var.region)
+  project     = var.project
+  region      = lower(var.region)
   credentials = "../gcloud_dist/terraform_sa_key.json"
 }
 

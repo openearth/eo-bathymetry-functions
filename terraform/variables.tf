@@ -1,28 +1,28 @@
-variable bucket_name {
+variable "bucket_name" {
   type        = string
   default     = "eo-bathymetry-automation"
   description = "Bucket to storage automatically generated images."
 }
 
-variable public_bucket_name {
+variable "public_bucket_name" {
   type        = string
   default     = "eo-bathymetry"
   description = "Bucket to store public data"
 }
 
-variable region {
+variable "region" {
   type        = string
-  default     = "EUROPE-WEST1"  # Netherlands
+  default     = "EUROPE-WEST1" # Netherlands
   description = "Location of bucket"
 }
 
-variable service_account_name {
+variable "service_account_name" {
   type        = string
   default     = "eo-bathymetry-automation"
   description = "name of service account used for the cloud function"
 }
 
-variable service_account_key_path {
+variable "service_account_key_path" {
   type        = string
   default     = "/etc/secrets/eo-bathymetry-sa-key"
   description = <<EOT
@@ -31,7 +31,7 @@ variable service_account_key_path {
   EOT
 }
 
-variable service_account_key_subpath {
+variable "service_account_key_subpath" {
   type        = string
   default     = "/key.json"
   description = <<EOT
@@ -40,9 +40,9 @@ variable service_account_key_subpath {
   EOT
 }
 
-variable cloudfunction_entrypoints {
-  type        = map(string)
-  default     = {
+variable "cloudfunction_entrypoints" {
+  type = map(string)
+  default = {
     "generate-bathymetry" = "generate_bathymetry",
     "generate-rgb-tiles"  = "generate_rgb_tiles"
 
@@ -50,59 +50,59 @@ variable cloudfunction_entrypoints {
   description = "map of the name of the cloud function plus the python names of their entrypoints."
 }
 
-variable function_memory {
+variable "function_memory" {
   type        = number
   default     = 256
   description = "Cloud function memory in MB"
 }
 
-variable labels {
-  type        = map(string)
-  default     = {
-      "project_name" = "eo-bathymetry",
-      "unit" = "sdi"
+variable "labels" {
+  type = map(string)
+  default = {
+    "project_name" = "eo-bathymetry",
+    "unit"         = "sdi"
   }
   description = "default set of labels applied to resources."
 }
 
-variable project {
+variable "project" {
   type        = string
   default     = "bathymetry"
   description = "project name"
 }
 
-variable sdb_job_configs {
-  type        = map(
+variable "sdb_job_configs" {
+  type = map(
     object({
-      description = string,
+      description   = string,
       cron_schedule = string,
-      time_zone = string,
-      http_method = string,
-      uri = string,
-      coordinates = list(tuple([number, number])),
-      asset_path = string
-      zoom = number,
-      export_zoom = number,
-      step_months = number,
-      window_years = number,
+      time_zone     = string,
+      http_method   = string,
+      uri           = string,
+      coordinates   = list(tuple([number, number])),
+      asset_path    = string
+      zoom          = number,
+      export_zoom   = number,
+      step_months   = number,
+      window_years  = number,
     })
   )
   description = "configuration for the cron-based cloud scheduler sdb jobs."
   default     = {}
 }
 
-variable rgb_job_configs {
-type        = map(
+variable "rgb_job_configs" {
+  type = map(
     object({
-      description = string,
-      cron_schedule = string,
-      time_zone = string,
-      http_method = string,
-      uri = string,
-      coordinates = list(tuple([number, number])),
+      description      = string,
+      cron_schedule    = string,
+      time_zone        = string,
+      http_method      = string,
+      uri              = string,
+      coordinates      = list(tuple([number, number])),
       image_collection = string,
-      max_zoom = number,
-      min_zoom = number
+      max_zoom         = number,
+      min_zoom         = number
     })
   )
   description = "configuration for the cron-based cloud scheduler rgb jobs."

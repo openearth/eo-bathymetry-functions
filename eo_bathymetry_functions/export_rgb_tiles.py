@@ -4,10 +4,10 @@ from json import dumps
 from typing import Any, Dict, List, Optional
 
 import ee
-
 from eepackages.utils import hillshadeRGB
 from eepackages.tiler import zoom_to_scale
 
+from eo_bathymetry_functions.exceptions import ArgumentError
 
 def hillshade_sdb(image: ee.Image) -> ee.Image:
     """
@@ -20,8 +20,8 @@ def hillshade_sdb(image: ee.Image) -> ee.Image:
         (ee.Image) hillshaded image
     """
     depth: ee.Image = ee.Image(1).subtract(image.select([0, 1, 2]).rgbToHsv().select("value")).pow(2)
-    weight: float = 0.6
-    exaggeration: int = 2000
+    weight: float = 1.5
+    exaggeration: int = 4000
     azimuth: int = 315
     zenith: int = 35
     return hillshadeRGB(
@@ -52,7 +52,12 @@ def render_subtidal(
 
         return i.visualize() \
             .blend(hillshade_sdb(i.select([0, 1, 2]).unitScale(0, 2)).updateMask(water)) \
-            .blend(water.mask(water).visualize(palette=["eff3ff","bdd7e7","6baed6","3182bd","08519c"], opacity=0.35)) \
+            .blend(water.mask(water).visualize(
+                palette=["eff3ff","bdd7e7","6baed6","3182bd","08519c"],
+                opacity=0.10,
+                min=0.05,
+                max=[0.15]
+            )) \
             .copyProperties(i, ["system:time_start"]) \
             .copyProperties(i)
     return ic.map(styling).mosaic()
@@ -132,7 +137,7 @@ def export_rgb_tiles(
         now: datetime = datetime.now()
         stop: datetime = datetime(year=now.year, month=now.month, day=1)
     if start > stop:
-        raise RuntimeError("Stop and Start too close")
+        raise ArgumentError("Stop and Start too close")
     ic: ee.ImageCollection = ee.ImageCollection(image_collection) \
         .filterDate(start, stop) \
         .filterBounds(geometry)

@@ -1,4 +1,3 @@
-from ctypes import ArgumentError
 from datetime import date as Date
 from json import dumps
 from typing import Any, Dict, List, Optional, Tuple
@@ -10,7 +9,7 @@ from eepackages import tiler
 from googleapiclient.discovery import build
 
 from eo_bathymetry_functions.utils import get_rolling_window_dates
-
+from eo_bathymetry_functions.exceptions import ArgumentError
 
 LEGACY_ASSET_PREFIX: str = "projects/earthengine-legacy/assets"
 
