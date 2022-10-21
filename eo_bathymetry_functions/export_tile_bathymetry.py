@@ -90,7 +90,7 @@ def tile_to_asset(
     elif asset:
         print(dumps({
             "severity": "NOTICE",
-            "message": f"asset {asset} already exists, skipping {asset_name}",
+            "message": f"asset {asset_name} already exists, skipping.",
             **global_log_fields
         }))
         return

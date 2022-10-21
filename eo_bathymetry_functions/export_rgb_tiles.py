@@ -53,7 +53,8 @@ def render_subtidal(
         return i.visualize() \
             .blend(hillshade_sdb(i.select([0, 1, 2]).unitScale(0, 2)).updateMask(water)) \
             .blend(water.mask(water).visualize(
-                palette=["eff3ff","bdd7e7","6baed6","3182bd","08519c"],
+                # blues[5]: ["eff3ff","bdd7e7","6baed6","3182bd","08519c"],
+                palette=["deebf7","9ecae1","3182bd"],  # blues[3]
                 opacity=0.10,
                 min=0.05,
                 max=[0.15]

@@ -91,7 +91,7 @@ resource "null_resource" "create_zip_archive" {
 }
 
 resource "google_storage_bucket_object" "archive" {
-  name       = "sdb.zip"
+  name       = "sdb${random_id.this.dec}.zip"
   bucket     = google_storage_bucket.bathymetry_data.name
   source     = "../gcloud_dist/dist${random_id.this.dec}.zip"
   depends_on = [null_resource.create_zip_archive]
