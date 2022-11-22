@@ -125,8 +125,6 @@ def export_rgb_tiles(
         start (str): date string as YYYY-MM-dd, where the export starts.
         stop (str): date string as YYYY-MM-dd, where the export stops.
         global_log_fields (Optional(Dict)): log fields for the entire cloud function.
-    Returns:
-
     """
     if not bucket_prefix:
         bucket_prefix = "sdb-tiles"
@@ -134,18 +132,24 @@ def export_rgb_tiles(
         start: datetime = parse(ee.Date(
             ee.ImageCollection(image_collection).aggregate_max("system:time_start")
         ).format("YYYY-MM-dd").getInfo())
+    else:
+        start: datetime = parse(start)
     if not stop:
         now: datetime = datetime.now()
         stop: datetime = datetime(year=now.year, month=now.month, day=1)
+    else:
+        stop: datetime = parse(stop)
     if start > stop:
         raise ArgumentError("Stop and Start too close")
     ic: ee.ImageCollection = ee.ImageCollection(image_collection) \
         .filterDate(start, stop) \
         .filterBounds(geometry)
+
     times: ee.List = ee.List(ic.aggregate_array('system:time_start'))
 
     times = times.map(lambda t: ee.Date(t).format('YYYY-MM-dd'))
     times = ee.List(times).distinct()
+
     for t in times.getInfo():
         export_timestep(
             timestep=t,
@@ -155,5 +159,5 @@ def export_rgb_tiles(
             geometry=geometry,
             bucket=bucket,
             bucket_prefix=bucket_prefix,
-            global_log_fields=global_log_fields
+            global_log_fields=global_log_fields,
         )

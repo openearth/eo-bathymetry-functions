@@ -4,7 +4,7 @@ from pathlib import Path
 import ee
 
 service_account = "eo-bathymetry-automation@bathymetry.iam.gserviceaccount.com"
-sa = ee.ServiceAccountCredentials(service_account, str(Path.cwd() / "gcloud_dist" / "eo-bathymetry-sa-key.json"))
+sa = ee.ServiceAccountCredentials(service_account, str(Path.cwd() / "gcloud_dist" / "key.json"))
 ee.Initialize(sa)
 
 ops = ee.data.listOperations()

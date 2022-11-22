@@ -1,4 +1,5 @@
 import requests
+from time import sleep
 
 import pandas as pd
 from retry.api import retry_call
@@ -171,17 +172,18 @@ body_sdb = {
     }
 }
 
-for t_start, t_end in time_bands:
-    body_sdb["start"] = t_start
-    body_sdb["end"] = t_end
-    res = retry_call(
-        requests.post,
-        fargs=(url_sdb,),
-        fkwargs={"json": body_sdb, "timeout": 600},
-        exceptions=(requests.exceptions.Timeout),
-        jitter=(5,10)
-    )
-    print(res.content)
+# for t_start, t_end in time_bands:
+#     body_sdb["start"] = t_start
+#     body_sdb["stop"] = t_end
+#     res = retry_call(
+#         requests.post,
+#         fargs=(url_sdb,),
+#         fkwargs={"json": body_sdb, "timeout": 600},
+#         exceptions=(requests.exceptions.Timeout, requests.exceptions.ConnectionError),
+#         jitter=(5,10)
+#     )
+#     sleep(60)
+#     print(res.content)
 
 body_rgb = {
     "geometry": geometry,
@@ -191,8 +193,16 @@ body_rgb = {
     "image_collection": "projects/deltares-rws/eo-bathymetry/depth-uncalibrated"
 }
 
+# time_bands = map(lambda d: (d.strftime("%Y-%m-%d"), (d + pd.DateOffset(months=1)).strftime("%Y-%m-%d")), dr)
+
 # for t_start, t_end in time_bands:
-#     body_rgb["start"] = t_start
-#     body_rgb["end"] = t_end
-#     res = requests.post(url_rgb, json=body_rgb)
-#     print(res.content)
+body_rgb["start"] = time_start
+# body_rgb["stop"] = t_end
+res = retry_call(
+    requests.post,
+    fargs=(url_rgb,),
+    fkwargs={"json": body_rgb, "timeout": 600},
+    exceptions=(requests.exceptions.Timeout, requests.exceptions.ConnectionError),
+    jitter=(5,10),
+)
+print(res.content)
