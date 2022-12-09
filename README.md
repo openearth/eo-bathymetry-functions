@@ -36,6 +36,10 @@ To test calculating and exporting bathymetry, use: `make local_deploy_sdb`.
 To test exporting the hillshaded tiles, use: `make local_deploy_rgb`.
 These commands start a docker image in the terminal, which exposes the cloud function on port 8080.
 
+### Tools
+The tools directory contain some scripts to do some common development tasks, like stopping tasks,
+checking task statuses, and more.
+
 ## Deployment
 `make deploy` runs terraform and deploys to cloud functions.
 
@@ -137,7 +141,3 @@ Use the previously created asset to store these images as tiles in cloud storage
     "image_collection": "projects/deltares-rws/eo-bathymetry/test-collection"
 }
 ```
-
-## TODO
-- Client side encryption: We can encrypt the terraform state at client side to enhance security.
-    when secrets are used in the `variables.tf`.

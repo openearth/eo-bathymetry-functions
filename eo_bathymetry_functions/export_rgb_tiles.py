@@ -20,8 +20,8 @@ def hillshade_sdb(image: ee.Image) -> ee.Image:
         (ee.Image) hillshaded image
     """
     depth: ee.Image = ee.Image(1).subtract(image.select([0, 1, 2]).rgbToHsv().select("value")).pow(2)
-    weight: float = 1.5
-    exaggeration: int = 4000
+    weight: float = 0.6
+    exaggeration: int = 2000
     azimuth: int = 315
     zenith: int = 35
     return hillshadeRGB(
@@ -54,10 +54,9 @@ def render_subtidal(
             .blend(hillshade_sdb(i.select([0, 1, 2]).unitScale(0, 2)).updateMask(water)) \
             .blend(water.mask(water).visualize(
                 # blues[5]: ["eff3ff","bdd7e7","6baed6","3182bd","08519c"],
-                palette=["deebf7","9ecae1","3182bd"],  # blues[3]
-                opacity=0.10,
-                min=0.05,
-                max=[0.15]
+                # blues[3]: ["deebf7","9ecae1","3182bd"],
+                palette=["eff3ff","bdd7e7","6baed6","3182bd","08519c"],
+                opacity=0.35,
             )) \
             .copyProperties(i, ["system:time_start"]) \
             .copyProperties(i)
@@ -81,8 +80,8 @@ def export_timestep(
     bucket_path: str = f"{bucket_prefix}/{timestep}"
     scale: float = zoom_to_scale(max_zoom)
 
-    image: ee.Image = render_subtidal(ic) # .reproject('EPSG:3857')  # .reproject(
-        # ee.Projection('EPSG:3857').atScale(zoom_to_scale(max_zoom)))
+    # reprojection gives errors
+    image: ee.Image = render_subtidal(ic)
     task: ee.batch.Task = ee.batch.Export.map.toCloudStorage(
         image,
         description=f"sdb-3d-rws-{timestep}-z{max_zoom}",
