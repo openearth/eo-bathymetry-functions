@@ -6,6 +6,7 @@ from dateutil.relativedelta import relativedelta
 from dateutil.parser import parse
 from flask import Request
 
+from eo_bathymetry_functions.exceptions import ArgumentError
 
 PROJECT = environ.get("PROJECT")
 
@@ -42,7 +43,7 @@ def get_rolling_window_dates(
 
     def rolling_time_window(start: Date, stop: Date, dt: relativedelta, window_length: relativedelta) -> List[Tuple[Date]]:
         if stop - window_length - start < timedelta(0):
-            raise RuntimeError("Stop and Start too close")
+            raise ArgumentError("Stop and Start too close")
         
         window_list: List[Tuple[Date]] = []
         t: Date = start
@@ -53,4 +54,9 @@ def get_rolling_window_dates(
     
     start_date: Date = Date(year=start.year, month=start.month, day=start.day)
     stop_date: Date = Date(year=stop.year, month=stop.month, day=stop.day)
-    return rolling_time_window(start_date, stop_date, relativedelta(months=step_months), relativedelta(years=window_years))
+    return rolling_time_window(
+        start_date,
+        stop_date,
+        relativedelta(months=step_months),
+        relativedelta(years=window_years)
+    )

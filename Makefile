@@ -47,7 +47,7 @@ local_deploy_rgb: build_rgb get_secrets
 	rgb-function
 
 get_tf_key:
-	gcloud secrets versions access 1 --secret="terraform-sa-key" --format='get(payload.data)' | tr '_-' '/+' | base64 -d > gcloud_dist/terraform_sa_key.json
+	gcloud secrets versions access "latest" --secret="terraform-sa-key" --format='get(payload.data)' | tr '_-' '/+' | base64 -d > gcloud_dist/terraform_sa_key.json
 
 deploy: get_tf_key
 	cd terraform && terraform apply -var-file workspaces/default.tfvars

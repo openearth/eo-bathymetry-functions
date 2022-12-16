@@ -35,15 +35,15 @@ resource "google_secret_manager_secret" "private_key" {
 }
 
 resource "google_secret_manager_secret_version" "private_key" {
-  secret = google_secret_manager_secret.private_key.id
+  secret      = google_secret_manager_secret.private_key.id
   secret_data = base64decode(google_service_account_key.service_account.private_key)
 }
 
 resource "google_secret_manager_secret_iam_member" "service_account" {
-  project = var.project
+  project   = var.project
   secret_id = google_secret_manager_secret.private_key.id
-  role = "roles/secretmanager.secretAccessor"
-  member = "serviceAccount:${google_service_account.service_account.email}"
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.service_account.email}"
 }
 
 resource "google_storage_bucket" "bathymetry_data" {
@@ -52,16 +52,16 @@ resource "google_storage_bucket" "bathymetry_data" {
   force_destroy = true
 
   uniform_bucket_level_access = true
-  labels = var.labels
+  labels                      = var.labels
 }
 
 module "storage_bucket-iam-bindings" {
-  source          = "terraform-google-modules/iam/google//modules/storage_buckets_iam"
+  source = "terraform-google-modules/iam/google//modules/storage_buckets_iam"
   storage_buckets = [
     google_storage_bucket.bathymetry_data.name,
     data.google_storage_bucket.public_bucket.name
   ]
-  mode            = "additive"
+  mode = "additive"
 
   bindings = {
     "roles/storage.objectAdmin" = [
@@ -91,9 +91,9 @@ resource "null_resource" "create_zip_archive" {
 }
 
 resource "google_storage_bucket_object" "archive" {
-  name   = "sdb.zip"
-  bucket = google_storage_bucket.bathymetry_data.name
-  source = "../gcloud_dist/dist${random_id.this.dec}.zip"
+  name       = "sdb${random_id.this.dec}.zip"
+  bucket     = google_storage_bucket.bathymetry_data.name
+  source     = "../gcloud_dist/dist${random_id.this.dec}.zip"
   depends_on = [null_resource.create_zip_archive]
 }
 
@@ -113,7 +113,7 @@ resource "google_cloudfunctions_function" "function" {
   trigger_http          = true
 
   environment_variables = {
-    "SA_EMAIL" = google_service_account.service_account.email,
+    "SA_EMAIL"    = google_service_account.service_account.email,
     "SA_KEY_PATH" = "${var.service_account_key_path}${var.service_account_key_subpath}"
   }
 
@@ -121,14 +121,14 @@ resource "google_cloudfunctions_function" "function" {
     mount_path = var.service_account_key_path
     secret = element(
       split("/", google_secret_manager_secret.private_key.name),
-      length(split("/", google_secret_manager_secret.private_key.name))-1
+      length(split("/", google_secret_manager_secret.private_key.name)) - 1
     )
-    
+
     versions {
       path = var.service_account_key_subpath
       version = element(
         split("/", google_secret_manager_secret_version.private_key.name),
-        length(split("/", google_secret_manager_secret_version.private_key.name))-1
+        length(split("/", google_secret_manager_secret_version.private_key.name)) - 1
       )
     }
   }
@@ -148,7 +148,7 @@ resource "google_cloudfunctions_function_iam_member" "invoker" {
 }
 
 resource "google_cloud_scheduler_job" "query_bathymetry_geo" {
-  for_each = var.sdb_job_configs
+  for_each         = var.sdb_job_configs
   name             = each.key
   description      = each.value["description"]
   schedule         = each.value["cron_schedule"]
@@ -162,18 +162,18 @@ resource "google_cloud_scheduler_job" "query_bathymetry_geo" {
   http_target {
     http_method = each.value["http_method"]
     uri         = each.value["uri"]
-    body        = base64encode(templatefile(
+    body = base64encode(templatefile(
       "${path.module}/request_sdb.tpl",
       each.value
     ))
-    headers     = {"Content-Type" = "application/json"}
+    headers = { "Content-Type" = "application/json" }
   }
 
   depends_on = [google_cloudfunctions_function.function]
 }
 
 resource "google_cloud_scheduler_job" "query_rgb_geo" {
-  for_each = var.rgb_job_configs
+  for_each         = var.rgb_job_configs
   name             = each.key
   description      = each.value["description"]
   schedule         = each.value["cron_schedule"]
@@ -187,11 +187,11 @@ resource "google_cloud_scheduler_job" "query_rgb_geo" {
   http_target {
     http_method = each.value["http_method"]
     uri         = each.value["uri"]
-    body        = base64encode(templatefile(
+    body = base64encode(templatefile(
       "${path.module}/request_rgb.tpl",
-      merge(each.value, {bucket=var.bucket_name})
+      merge(each.value, { bucket = var.bucket_name })
     ))
-    headers     = {"Content-Type" = "application/json"}
+    headers = { "Content-Type" = "application/json" }
   }
 
   depends_on = [google_cloudfunctions_function.function]

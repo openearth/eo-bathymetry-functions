@@ -4,10 +4,10 @@ from json import dumps
 from typing import Any, Dict, List, Optional
 
 import ee
-
 from eepackages.utils import hillshadeRGB
 from eepackages.tiler import zoom_to_scale
 
+from eo_bathymetry_functions.exceptions import ArgumentError
 
 def hillshade_sdb(image: ee.Image) -> ee.Image:
     """
@@ -52,7 +52,12 @@ def render_subtidal(
 
         return i.visualize() \
             .blend(hillshade_sdb(i.select([0, 1, 2]).unitScale(0, 2)).updateMask(water)) \
-            .blend(water.mask(water).visualize(palette=["eff3ff","bdd7e7","6baed6","3182bd","08519c"], opacity=0.35)) \
+            .blend(water.mask(water).visualize(
+                # blues[5]: ["eff3ff","bdd7e7","6baed6","3182bd","08519c"],
+                # blues[3]: ["deebf7","9ecae1","3182bd"],
+                palette=["eff3ff","bdd7e7","6baed6","3182bd","08519c"],
+                opacity=0.35,
+            )) \
             .copyProperties(i, ["system:time_start"]) \
             .copyProperties(i)
     return ic.map(styling).mosaic()
@@ -75,8 +80,8 @@ def export_timestep(
     bucket_path: str = f"{bucket_prefix}/{timestep}"
     scale: float = zoom_to_scale(max_zoom)
 
-    image: ee.Image = render_subtidal(ic) # .reproject('EPSG:3857')  # .reproject(
-        # ee.Projection('EPSG:3857').atScale(zoom_to_scale(max_zoom)))
+    # reprojection gives errors
+    image: ee.Image = render_subtidal(ic)
     task: ee.batch.Task = ee.batch.Export.map.toCloudStorage(
         image,
         description=f"sdb-3d-rws-{timestep}-z{max_zoom}",
@@ -119,8 +124,6 @@ def export_rgb_tiles(
         start (str): date string as YYYY-MM-dd, where the export starts.
         stop (str): date string as YYYY-MM-dd, where the export stops.
         global_log_fields (Optional(Dict)): log fields for the entire cloud function.
-    Returns:
-
     """
     if not bucket_prefix:
         bucket_prefix = "sdb-tiles"
@@ -128,18 +131,24 @@ def export_rgb_tiles(
         start: datetime = parse(ee.Date(
             ee.ImageCollection(image_collection).aggregate_max("system:time_start")
         ).format("YYYY-MM-dd").getInfo())
+    else:
+        start: datetime = parse(start)
     if not stop:
         now: datetime = datetime.now()
         stop: datetime = datetime(year=now.year, month=now.month, day=1)
+    else:
+        stop: datetime = parse(stop)
     if start > stop:
-        raise RuntimeError("Stop and Start too close")
+        raise ArgumentError("Stop and Start too close")
     ic: ee.ImageCollection = ee.ImageCollection(image_collection) \
         .filterDate(start, stop) \
         .filterBounds(geometry)
+
     times: ee.List = ee.List(ic.aggregate_array('system:time_start'))
 
     times = times.map(lambda t: ee.Date(t).format('YYYY-MM-dd'))
     times = ee.List(times).distinct()
+
     for t in times.getInfo():
         export_timestep(
             timestep=t,
@@ -149,5 +158,5 @@ def export_rgb_tiles(
             geometry=geometry,
             bucket=bucket,
             bucket_prefix=bucket_prefix,
-            global_log_fields=global_log_fields
+            global_log_fields=global_log_fields,
         )

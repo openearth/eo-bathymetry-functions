@@ -11,6 +11,7 @@ from urllib3.exceptions import NewConnectionError
 
 from eo_bathymetry_functions.export_tile_bathymetry import export_tiles
 from eo_bathymetry_functions.export_rgb_tiles import export_rgb_tiles
+from eo_bathymetry_functions.exceptions import ArgumentError
 from eo_bathymetry_functions.utils import set_up_cf_logging
 
 credentials: ee.ServiceAccountCredentials = ee.ServiceAccountCredentials(environ.get("SA_EMAIL"), environ.get("SA_KEY_PATH"))
@@ -247,10 +248,13 @@ def generate_rgb_tiles(request: Request):
     opt_image_collection: Optional[str] = json_body.get("image_collection")
     if opt_image_collection:
         kwargs["image_collection"] = opt_image_collection
-        
-    export_rgb_tiles(
-        **kwargs,
-        global_log_fields=global_log_fields
-    )
+    
+    try:
+        export_rgb_tiles(
+            **kwargs,
+            global_log_fields=global_log_fields
+        )
+    except ArgumentError as e:
+        return Response(str(e), status=400)
 
     return Response(status=200)

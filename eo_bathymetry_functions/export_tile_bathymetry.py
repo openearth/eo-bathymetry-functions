@@ -1,4 +1,3 @@
-from ctypes import ArgumentError
 from datetime import date as Date
 from json import dumps
 from typing import Any, Dict, List, Optional, Tuple
@@ -10,7 +9,7 @@ from eepackages import tiler
 from googleapiclient.discovery import build
 
 from eo_bathymetry_functions.utils import get_rolling_window_dates
-
+from eo_bathymetry_functions.exceptions import ArgumentError
 
 LEGACY_ASSET_PREFIX: str = "projects/earthengine-legacy/assets"
 
@@ -37,16 +36,16 @@ def get_tile_bathymetry(tile: ee.Feature, start: ee.String, stop: ee.String) -> 
     img_fullname: ee.String = ee.String(tile_name).cat("_t").cat(ee.Date(start).millis().format())
     
     image: ee.Image = sdb.compute_inverse_depth(
-                bounds=bounds,
-                start=start,
-                stop=stop,
-                filter_masked=True,
-                scale=tiler.zoom_to_scale(ee.Number.parse(tile.get("zoom"))).multiply(5),
+        bounds=bounds,
+        start=start,
+        stop=stop,
+        filter_masked=True,
+        scale=tiler.zoom_to_scale(ee.Number.parse(tile.get("zoom"))).multiply(5),
     )
     image = image.set(
         "fullname", img_fullname,
-        "system:time_start", ee.Date(start).millis(),
-        "system:time_stop", ee.Date(stop).millis(),
+        "system:time_start", ee.Date(stop).millis(),
+        # "system:time_stop", ee.Date(stop).millis(),
         "zoom", zoom,
         "tx", tx,
         "ty", ty
@@ -91,7 +90,7 @@ def tile_to_asset(
     elif asset:
         print(dumps({
             "severity": "NOTICE",
-            "message": f"asset {asset} already exists, skipping {asset_name}",
+            "message": f"asset {asset_name} already exists, skipping.",
             **global_log_fields
         }))
         return
@@ -213,7 +212,7 @@ def export_sdb_tiles(
         global_log_fields: Dict[str, str] = {}
     if sink == "asset":
         # create folder if not exists
-        ee.data.create_assets(asset_ids=[asset_path], asset_type="Folder", mk_parents=True)
+        ee.data.create_assets(asset_ids=[asset_path], asset_type="IMAGE_COLLECTION", mk_parents=True)
     
     for i in range(num_tiles):
         # get tile

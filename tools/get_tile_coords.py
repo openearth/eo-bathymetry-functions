@@ -1,20 +1,33 @@
-import requests
-from time import sleep
+import json
+import ee
 
-import pandas as pd
-from retry.api import retry_call
+import pyproj
+import geojson
+from shapely.geometry import Polygon
+from shapely.ops import transform
 
-url_sdb = "https://europe-west1-bathymetry.cloudfunctions.net/generate-bathymetry"
-url_rgb = "https://europe-west1-bathymetry.cloudfunctions.net/generate-rgb-tiles"
+from eepackages.tiler import get_tiles_for_geometry
 
-time_start = "2013-01-01"
-start_time_end = "2020-10-01"
+ee.Initialize()
 
-dr = pd.date_range(time_start, start_time_end, freq="3MS")
-
-time_bands = map(lambda d: (d.strftime("%Y-%m-%d"), (d + pd.DateOffset(years=2)).strftime("%Y-%m-%d")), dr)
-
-geometry = {
+def get_tile_coords(geom, zoom=7):
+    geom = ee.Geometry(geom)
+    tiles = ee.FeatureCollection(get_tiles_for_geometry(geom, zoom))
+    crs_to = pyproj.CRS('EPSG:4326')
+    size = tiles.size().getInfo()
+    geoms = []
+    for i in range(size):
+        dict_geom = ee.Feature(tiles.toList(size).get(i)).geometry().getInfo()
+        shape = Polygon(shell=dict_geom["coordinates"][0])
+        crs_from = pyproj.CRS(dict_geom["crs"]["properties"]["name"])
+        project = pyproj.Transformer.from_crs(crs_from, crs_to, always_xy=True).transform
+        transformed = transform(project, shape)
+        geoms.append(transformed)
+    col = geojson.GeometryCollection(geoms)
+    with open("tiles.geojson", "w") as f:
+        geojson.dump(col, f)
+    
+geom  = {
     "type": "Polygon",
     "coordinates": [
         [
@@ -162,44 +175,4 @@ geometry = {
     ]
 }
 
-body_sdb = {
-    "geometry": geometry,
-    "zoom": 9,
-    "export_zoom": 13,
-    "sink": {
-        "type": "asset",
-        "asset_path": "projects/deltares-rws/eo-bathymetry/subtidal-nl"
-    }
-}
-
-# for t_start, t_end in time_bands:
-#     body_sdb["start"] = t_start
-#     body_sdb["stop"] = t_end
-#     res = retry_call(
-#         requests.post,
-#         fargs=(url_sdb,),
-#         fkwargs={"json": body_sdb, "timeout": 600},
-#         exceptions=(requests.exceptions.Timeout, requests.exceptions.ConnectionError),
-#         jitter=(5,10)
-#     )
-#     sleep(60)
-#     print(res.content)
-
-body_rgb = {
-    "geometry": geometry,
-    "bucket": "eo-bathymetry",
-    "bucket_prefix": "subtidal-tiles-nl",
-    "min_zoom": 0,
-    "max_zoom": 13,
-    "image_collection": "projects/deltares-rws/eo-bathymetry/subtidal-nl"
-}
-
-body_rgb["start"] = time_start
-res = retry_call(
-    requests.post,
-    fargs=(url_rgb,),
-    fkwargs={"json": body_rgb, "timeout": 600},
-    exceptions=(requests.exceptions.Timeout, requests.exceptions.ConnectionError),
-    jitter=(5,10),
-)
-print(res.content)
+get_tile_coords(geom)
