@@ -1,7 +1,11 @@
-import requests
+# Script to run backfill of subtidal bathymetry tile generation
+# Usage: python run_backfill.py
+# TODO: currently used with manual code commenting / editing, should become cli utility.
+
 from time import sleep
 
 import pandas as pd
+import requests
 from retry.api import retry_call
 
 url_sdb = "https://europe-west1-bathymetry.cloudfunctions.net/generate-bathymetry"
@@ -9,8 +13,8 @@ url_rgb = "https://europe-west1-bathymetry.cloudfunctions.net/generate-rgb-tiles
 
 # time_start = "2013-01-01"
 # start_time_end = "2020-10-01"
-time_start = "2021-01-01"
-start_time_end = "2021-01-01"
+time_start = "2021-04-01"
+start_time_end = "2021-07-01"
 
 dr = pd.date_range(time_start, start_time_end, freq="3MS")
 
@@ -75,18 +79,17 @@ body_sdb = {
     },
 }
 
-for t_start, t_end in time_bands:
-    body_sdb["start"] = t_start
-    body_sdb["stop"] = t_end
-    res = retry_call(
-        requests.post,
-        fargs=(url_sdb,),
-        fkwargs={"json": body_sdb, "timeout": 600},
-        exceptions=(requests.exceptions.Timeout, requests.exceptions.ConnectionError),
-        jitter=(5, 10),
-    )
-    sleep(60)
-    print(res.content)
+# for t_start, t_end in time_bands:
+#     body_sdb["start"] = t_start
+#     body_sdb["stop"] = t_end
+#     res = retry_call(
+#         requests.post,
+#         fargs=(url_sdb,),
+#         fkwargs={"json": body_sdb, "timeout": 600},
+#         exceptions=(requests.exceptions.Timeout, requests.exceptions.ConnectionError),
+#         jitter=(5, 10),
+#     )
+#     sleep(60)
 
 body_rgb = {
     "geometry": geometry,
@@ -97,12 +100,12 @@ body_rgb = {
     "image_collection": "projects/deltares-rws/eo-bathymetry/subtidal-nl",
 }
 
-body_rgb["start"] = time_start
-# res = retry_call(
-#     requests.post,
-#     fargs=(url_rgb,),
-#     fkwargs={"json": body_rgb, "timeout": 600},
-#     exceptions=(requests.exceptions.Timeout, requests.exceptions.ConnectionError),
-#     jitter=(5, 10),
-# )
-# print(res.content)
+body_rgb["start"] = next(time_bands)[1]
+res = retry_call(
+    requests.post,
+    fargs=(url_rgb,),
+    fkwargs={"json": body_rgb, "timeout": 600},
+    exceptions=(requests.exceptions.Timeout, requests.exceptions.ConnectionError),
+    jitter=(5, 10),
+)
+print(res.content)

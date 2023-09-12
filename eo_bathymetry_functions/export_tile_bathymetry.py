@@ -1,19 +1,22 @@
 from datetime import date as Date
 from json import dumps
-from typing import Any, Dict, List, Optional, Tuple
 from re import sub
+from typing import Any, Dict, List, Optional, Tuple
 
 import ee
-from eepackages.applications.bathymetry import Bathymetry
 from eepackages import tiler
+from eepackages.applications.bathymetry import Bathymetry
 from googleapiclient.discovery import build
 
-from eo_bathymetry_functions.utils import get_rolling_window_dates
 from eo_bathymetry_functions.exceptions import ArgumentError
+from eo_bathymetry_functions.utils import get_rolling_window_dates
 
 LEGACY_ASSET_PREFIX: str = "projects/earthengine-legacy/assets"
 
-def get_tile_bathymetry(tile: ee.Feature, start: ee.String, stop: ee.String) -> ee.Image:
+
+def get_tile_bathymetry(
+    tile: ee.Feature, start: ee.String, stop: ee.String
+) -> ee.Image:
     """
     Get subtidal bathymetry based on tile geometry.
     Server-side compliant for GEE.
@@ -22,7 +25,7 @@ def get_tile_bathymetry(tile: ee.Feature, start: ee.String, stop: ee.String) -> 
         tile (ee.Feature): tile geometry used to obtain bathymetry.
         start (ee.String): start date in YYYY-MM-dd format.
         stop (ee.String): stop date in YYYY-MM-dd format.
-    
+
     returns:
         ee.Image: image containing subtidal bathymetry covering tile.
     """
@@ -32,25 +35,43 @@ def get_tile_bathymetry(tile: ee.Feature, start: ee.String, stop: ee.String) -> 
     zoom: ee.String = ee.String(tile.get("zoom"))
     tx: ee.String = ee.String(tile.get("tx"))
     ty: ee.String = ee.String(tile.get("ty"))
-    tile_name: ee.String = ee.String("z").cat(zoom).cat("_x").cat(tx).cat("_y").cat(ty).replace("\.\d+", "", "g")
-    img_fullname: ee.String = ee.String(tile_name).cat("_t").cat(ee.Date(start).millis().format())
-    
+    tile_name: ee.String = (
+        ee.String("z")
+        .cat(zoom)
+        .cat("_x")
+        .cat(tx)
+        .cat("_y")
+        .cat(ty)
+        .replace("\.\d+", "", "g")
+    )
+    img_fullname: ee.String = (
+        ee.String(tile_name).cat("_t").cat(ee.Date(start).millis().format())
+    )
+
     image: ee.Image = sdb.compute_inverse_depth(
         bounds=bounds,
         start=start,
         stop=stop,
         filter_masked=True,
-        scale=tiler.zoom_to_scale(ee.Number.parse(tile.get("zoom"))).multiply(5),
+        scale=tiler.zoom_to_scale(ee.Number.parse(tile.get("zoom"))).multiply(
+            10
+        ),  # increase scale to speed up computation
     )
     image = image.set(
-        "fullname", img_fullname,
-        "system:time_start", ee.Date(stop).millis(),
+        "fullname",
+        img_fullname,
+        "system:time_start",
+        ee.Date(stop).millis(),
         # "system:time_stop", ee.Date(stop).millis(),
-        "zoom", zoom,
-        "tx", tx,
-        "ty", ty
+        "zoom",
+        zoom,
+        "tx",
+        tx,
+        "ty",
+        ty,
     )
     return image
+
 
 def tile_to_asset(
     image: ee.Image,
@@ -59,7 +80,7 @@ def tile_to_asset(
     asset_path_prefix: str,
     asset_name: str,
     overwrite: bool,
-    global_log_fields: Optional[Dict[str, str]] = None
+    global_log_fields: Optional[Dict[str, str]] = None,
 ) -> Optional[ee.batch.Task]:
     """
     Export a tile to a earth engine asset
@@ -81,18 +102,26 @@ def tile_to_asset(
     asset_id: str = f"{asset_path_prefix}/{asset_name}"
     asset: Dict[str, Any] = ee.data.getInfo(f"{LEGACY_ASSET_PREFIX}/{asset_id}")
     if overwrite and asset:
-        print(dumps({
-            "severity": "NOTICE",
-            "message": f"deleting asset {asset_name}",
-            **global_log_fields
-        }))
+        print(
+            dumps(
+                {
+                    "severity": "NOTICE",
+                    "message": f"deleting asset {asset_name}",
+                    **global_log_fields,
+                }
+            )
+        )
         ee.data.deleteAsset(f"{LEGACY_ASSET_PREFIX}/{asset_id}")
     elif asset:
-        print(dumps({
-            "severity": "NOTICE",
-            "message": f"asset {asset_name} already exists, skipping.",
-            **global_log_fields
-        }))
+        print(
+            dumps(
+                {
+                    "severity": "NOTICE",
+                    "message": f"asset {asset_name} already exists, skipping.",
+                    **global_log_fields,
+                }
+            )
+        )
         return
 
     bounds: ee.Geometry = tile.geometry().buffer(export_scale).bounds()
@@ -103,14 +132,19 @@ def tile_to_asset(
         region=bounds,
         scale=export_scale,
         crs="EPSG:3857",
-        maxPixels=1e10
+        maxPixels=1e10,
     )
     task.start()
-    print(dumps({
-        "severity": "NOTICE",
-        "message": f"exporting {asset_name} to {asset_id}, taskid: {task.id}",
-        **global_log_fields
-    }))
+    print(
+        dumps(
+            {
+                "severity": "NOTICE",
+                "message": f"exporting {asset_name} to {asset_id}, taskid: {task.id}",
+                **global_log_fields,
+            }
+        )
+    )
+
 
 def tile_to_cloud_storage(
     image: ee.Image,
@@ -119,7 +153,7 @@ def tile_to_cloud_storage(
     bucket: str,
     bucket_path: str,
     overwrite: bool,
-    global_log_fields: Optional[Dict[str, str]] = None
+    global_log_fields: Optional[Dict[str, str]] = None,
 ) -> Optional[ee.batch.Task]:
     """
     Export a tile to cloud storage
@@ -138,23 +172,36 @@ def tile_to_cloud_storage(
     """
     if not global_log_fields:
         global_log_fields: Dict[str, str] = {}
-    with build('storage', 'v1') as storage:
-        res = storage.objects().list(bucket=bucket, prefix="/".join(bucket_path.split("/")[:-1])).execute()
+    with build("storage", "v1") as storage:
+        res = (
+            storage.objects()
+            .list(bucket=bucket, prefix="/".join(bucket_path.split("/")[:-1]))
+            .execute()
+        )
     if not overwrite:
         try:
-            object_exists = any(map(lambda item: item.get("name").startswith(bucket_path), res.get("items")))
+            object_exists = any(
+                map(
+                    lambda item: item.get("name").startswith(bucket_path),
+                    res.get("items"),
+                )
+            )
         except (AttributeError, TypeError):
             object_exists = False
         if object_exists:
-            print(dumps({
-                "severity": "NOTICE",
-                "message": f"object {bucket_path} already exists in bucket {bucket}, skipping",
-                **global_log_fields
-            }))
+            print(
+                dumps(
+                    {
+                        "severity": "NOTICE",
+                        "message": f"object {bucket_path} already exists in bucket {bucket}, skipping",
+                        **global_log_fields,
+                    }
+                )
+            )
             return
-    
+
     bounds: ee.Geometry = tile.geometry().buffer(export_scale).bounds()
-        
+
     task: ee.batch.Task = ee.batch.Export.image.toCloudStorage(
         image,
         bucket=bucket,
@@ -163,15 +210,20 @@ def tile_to_cloud_storage(
         region=bounds,
         scale=export_scale,
         crs="EPSG:3857",
-        maxPixels=1e10
+        maxPixels=1e10,
     )
     task.start()
-    print(dumps({
-        "severity": "NOTICE",
-        "message": f"exporting tile to bucket {bucket}/{bucket_path}, taskid: {task.id}",
-        **global_log_fields
-    }))
+    print(
+        dumps(
+            {
+                "severity": "NOTICE",
+                "message": f"exporting tile to bucket {bucket}/{bucket_path}, taskid: {task.id}",
+                **global_log_fields,
+            }
+        )
+    )
     return task
+
 
 def export_sdb_tiles(
     sink: str,
@@ -184,7 +236,7 @@ def export_sdb_tiles(
     overwrite: bool,
     bucket: Optional[str] = None,
     asset_path: Optional[str] = None,
-    global_log_fields: Optional[Dict[str, str]] = None
+    global_log_fields: Optional[Dict[str, str]] = None,
 ) -> List[ee.batch.Task]:
     """
     Export list of tiled images containing subtidal bathymetry. Fires off the tasks and adds to the list of tasks.
@@ -203,7 +255,7 @@ def export_sdb_tiles(
         bucket (Optional(str)): Bucket where the data is stored. Only used when sink = "cloud".
         asset_path (Optional(str)): Path where the asset will be stored. Only used when sink = "asset".
         global_log_fields (Optional(Dict)): log fields for the entire cloud function.
-    
+
     returns:
         List[ee.batch.Task]: list of started tasks
 
@@ -212,8 +264,10 @@ def export_sdb_tiles(
         global_log_fields: Dict[str, str] = {}
     if sink == "asset":
         # create folder if not exists
-        ee.data.create_assets(asset_ids=[asset_path], asset_type="IMAGE_COLLECTION", mk_parents=True)
-    
+        ee.data.create_assets(
+            asset_ids=[asset_path], asset_type="IMAGE_COLLECTION", mk_parents=True
+        )
+
     for i in range(num_tiles):
         # get tile
         temp_tile: ee.Feature = ee.Feature(tile_list.get(i))
@@ -222,10 +276,11 @@ def export_sdb_tiles(
         ty: str = tile_metadata["ty"]
         zoom: str = tile_metadata["zoom"]
         # filter imagecollection based on tile
-        filtered_ic: ee.ImageCollection = sdb_tiles \
-            .filterMetadata("tx", "equals", tx) \
-            .filterMetadata("ty", "equals", ty) \
+        filtered_ic: ee.ImageCollection = (
+            sdb_tiles.filterMetadata("tx", "equals", tx)
+            .filterMetadata("ty", "equals", ty)
             .filterMetadata("zoom", "equals", zoom)
+        )
         # if filtered correctly, only a single image remains
         img: ee.Image = ee.Image(filtered_ic.first())  # have to cast here
         img_name: str = sub(r"\.\d+", "", f"z{zoom}/x{tx}/y{ty}/") + name_suffix
@@ -238,12 +293,13 @@ def export_sdb_tiles(
                 asset_path_prefix=asset_path,
                 asset_name=img_name.replace("/", "_"),
                 overwrite=overwrite,
-                global_log_fields=global_log_fields
+                global_log_fields=global_log_fields,
             )
-            if task: task_list.append(task)
+            if task:
+                task_list.append(task)
         elif sink == "cloud":
             if not bucket:
-                raise ArgumentError("Sink option requires \"bucket\" arg.")
+                raise ArgumentError('Sink option requires "bucket" arg.')
             task: ee.batch.Task = tile_to_cloud_storage(
                 image=img,
                 tile=temp_tile,
@@ -251,12 +307,13 @@ def export_sdb_tiles(
                 bucket=bucket,
                 bucket_path=img_name,
                 overwrite=overwrite,
-                global_log_fields=global_log_fields
+                global_log_fields=global_log_fields,
             )
         else:
             raise ArgumentError("unrecognized data sink: {sink}")
         task_list.append(task)
     return task_list
+
 
 def export_tiles(
     sink: str,
@@ -270,7 +327,7 @@ def export_tiles(
     overwrite: Optional[bool] = False,
     bucket: Optional[str] = None,
     asset_path: Optional[str] = None,
-    global_log_fields: Optional[Dict[str, str]] = None
+    global_log_fields: Optional[Dict[str, str]] = None,
 ) -> None:
     """
     From a geometry, creates tiles of input zoom level, calculates subtidal bathymetry in those
@@ -293,14 +350,18 @@ def export_tiles(
     """
     if not global_log_fields:
         global_log_fields: Dict[str, str] = {}
-    
+
     if not export_zoom:
         export_zoom = zoom
-    
-    dates: List[Tuple[Date]] = get_rolling_window_dates(start, stop, step_months, window_years)
-    
+
+    dates: List[Tuple[Date]] = get_rolling_window_dates(
+        start, stop, step_months, window_years
+    )
+
     # Get tiles
-    tiles: ee.FeatureCollection = tiler.get_tiles_for_geometry(geometry, ee.Number(zoom))
+    tiles: ee.FeatureCollection = tiler.get_tiles_for_geometry(
+        geometry, ee.Number(zoom)
+    )
 
     scale: float = tiler.zoom_to_scale(export_zoom).getInfo()
     task_list: List[ee.batch.Task] = []
@@ -310,9 +371,7 @@ def export_tiles(
     for date in dates:
         sdb_tiles: ee.ImageCollection = tiles.map(
             lambda tile: get_tile_bathymetry(
-                tile=tile,
-                start=ee.String(date[0]),
-                stop=ee.String(date[1])
+                tile=tile, start=ee.String(date[0]), stop=ee.String(date[1])
             )
         )
 
@@ -328,5 +387,5 @@ def export_tiles(
             overwrite=overwrite,
             bucket=bucket,
             asset_path=asset_path,
-            global_log_fields=global_log_fields
+            global_log_fields=global_log_fields,
         )
